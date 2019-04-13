@@ -10,6 +10,9 @@
 #include "sdkconfig.h"
 #include "colors.h"
 
+
+// Testing git fugitive
+
 struct section_colors_t colors[10];
 
 void app_main()
