@@ -3,6 +3,5 @@
 # project subdirectory.
 #
 
-PROJECT_NAME := ws813b
+PROJECT_NAME := testProgram
 include $(IDF_PATH)/make/project.mk
-

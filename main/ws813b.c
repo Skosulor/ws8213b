@@ -1,63 +1,24 @@
-
-/*  */
-// old main stack size 3584
-
+#include "driver/rmt.h"
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "ws813b.h"
-#include "sdkconfig.h"
-#include "colors.h"
-
-
-void app_main(){
-
-  struct section_colors_t colors[10];
-
-  int i;
-
-  for(i = 0; i < 10; i++){
-    colors[i] = testColors[i];
-  }
-
-  init();
-
-  // Led config
-  volatile struct led_config conf;
-  conf.length         = 60;
-  conf.fadeRate       = 255;
-  conf.section_length = 10;
-  conf.section_offset = 0;
-  conf.section_colors = (malloc(conf.section_length * sizeof(section_colors_t)));
-  conf.fade           = 0;
-  conf.walk           = 1;
-  conf.walk_rate      = 25;
-  conf.smooth         = 1;
-  conf.fadeWalk       = 0;
-  conf.fadeWalkFreq   = 30;
-  conf.fadeWalkRate   = 3;
-  struct led_struct leds[conf.length];
-
-  conf.section_colors = colors;
-  setSectionColors(conf, leds);
-  setLeds(leds, conf);
-
-  for(i = 0; i < conf.length; i ++){
-    leds[i].fadeR = 0;
-    leds[i].fadeG = 0;
-    leds[i].fadeB = 0;
-  }
-
-  while(1){
-    printf("sizeof leds %d\n", sizeof(leds));
-    printf("Changing light\n");
-    ledEngine(conf, leds);
-
-    vTaskDelay( UPDATE_FREQ_MS / portTICK_PERIOD_MS); 
-  }
-}
 
 void init(){
+
+  rmt_conf.rmt_mode                       = RMT_MODE_TX;
+  rmt_conf.channel                        = RMT_CHANNEL_0;
+  rmt_conf.gpio_num                       = 4;
+  rmt_conf.mem_block_num                  = 1;
+  rmt_conf.tx_config.loop_en              = 0;
+  rmt_conf.tx_config.carrier_en           = 0;
+  rmt_conf.tx_config.idle_output_en       = 1;
+  rmt_conf.tx_config.idle_level           = 0;
+  rmt_conf.tx_config.carrier_duty_percent = 50;
+  rmt_conf.tx_config.carrier_freq_hz      = 10000;
+  rmt_conf.tx_config.carrier_level        = 1;
+  rmt_conf.clk_div                        = 8;
+
   ESP_ERROR_CHECK(rmt_config(&rmt_conf));
   ESP_ERROR_CHECK(rmt_driver_install(rmt_conf.channel, 0, 0));
 }
@@ -72,11 +33,10 @@ void ledEngine(struct led_config led_conf, struct led_struct *leds){
   TickType_t       LastWakeTime;
   int i;
 
-  if(led_conf.smooth == 1){
-    for(i = 0; i < 15; i++){
+  printf("led_conf:\n walk: %d\n fade: %d\n smooth: %d\n", led_conf.walk, led_conf.fade, led_conf.smooth);
+    for(i = 0; i < led_conf.smooth; i++){
       fadeWalk(leds, led_conf);
     }
-  }
 
 
   setLeds(leds, led_conf);

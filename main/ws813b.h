@@ -1,3 +1,5 @@
+#ifndef WS813B_H_
+#define WS813B_H_
 #include "driver/rmt.h"
 
 #define UPDATE_FREQ 10
@@ -42,17 +44,17 @@ struct led_config
   struct section_colors_t *section_colors;
 } led_config;
 
-const rmt_item32_t setItem[] =
+static const rmt_item32_t setItem[] =
 {
 {{{
    500,
-   0,   
+   0,
    500,
    0
 }}}
 };
 
-const rmt_item32_t oneItem[] =
+static const rmt_item32_t oneItem[] =
 {
 {{{
    8,
@@ -62,7 +64,7 @@ const rmt_item32_t oneItem[] =
 }}}
 };
 
-const rmt_item32_t zeroItem[] =
+static const rmt_item32_t zeroItem[] =
 {
 {{{
    4,
@@ -72,21 +74,8 @@ const rmt_item32_t zeroItem[] =
 }}}
 };
 
-rmt_config_t rmt_conf ={
+rmt_config_t rmt_conf;
 
-  .rmt_mode                       = RMT_MODE_TX,
-  .channel                        = RMT_CHANNEL_0,
-  .gpio_num                       = 4,
-  .mem_block_num                  = 1,
-  .tx_config.loop_en              = 0,
-  .tx_config.carrier_en           = 0,
-  .tx_config.idle_output_en       = 1,
-  .tx_config.idle_level           = 0,
-  .tx_config.carrier_duty_percent = 50,
-  .tx_config.carrier_freq_hz      = 10000,
-  .tx_config.carrier_level        = 1,
-  .clk_div                        = 8,
-};
 
 void init();
 void outputLeds(struct led_struct *leds, struct led_config led_conf);
@@ -108,3 +97,5 @@ void setFadeColorsSection(struct led_config conf, struct led_struct *leds);
 void stepFade(struct led_struct *led, struct led_config conf,
               uint8_t rTarget, uint8_t bTarget, uint8_t gTarget);
 
+
+#endif

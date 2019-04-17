@@ -1,12 +1,12 @@
-
-struct section_colors_t white = {
+#include "ws813b.h"
+static const struct section_colors_t white = {
   .red = 255,
   .blue = 255,
   .green = 255,
   };
 
 
-struct section_colors_t testColors[10] = {
+static const struct section_colors_t testColors[10] = {
 
   {
   .red = 255,      // Purple

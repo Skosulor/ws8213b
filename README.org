@@ -16,6 +16,10 @@ operates on the led strip.
 
 To start the ledEngine, create a led_config struct and set desired values. +Then call the init function+.
 
+** sdkconfig 
+*CONFIG_FREERTOS_HZ* Must be set to 1000 in sdkconfig for the rate and frequency variables to 
+function as intended. If not set the the default is 100 and the update rate might not be as
+fast as desired for some modes. It is however possible to leave it as is.
 ** TODO init function
 
 ** TODO Set colors
