@@ -4,6 +4,5 @@
 #
 
 PROJECT_NAME := ws813b
-
 include $(IDF_PATH)/make/project.mk
 

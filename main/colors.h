@@ -13,10 +13,10 @@ struct section_colors_t testColors[10] = {
   .green = 0,
   .blue = 200,
   },
-  
+
   {
   .red = 255,     // Yellow
-  .green = 125,  
+  .green = 125,
   .blue = 0,
   },
 
@@ -51,8 +51,8 @@ struct section_colors_t testColors[10] = {
   },
 
   {
-  .red = 0,     
-  .green = 55,         
+  .red = 0,
+  .green = 55,
   .blue = 255,
   },
 
@@ -64,7 +64,7 @@ struct section_colors_t testColors[10] = {
   },
 
   {
-  .red = 0,     
+  .red = 0,
   .green = 100,
   .blue = 0,
   }

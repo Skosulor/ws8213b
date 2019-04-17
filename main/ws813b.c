@@ -9,9 +9,10 @@
 #include "sdkconfig.h"
 #include "colors.h"
 
-struct section_colors_t colors[10];
 
 void app_main(){
+
+  struct section_colors_t colors[10];
 
   int i;
 
@@ -19,22 +20,7 @@ void app_main(){
     colors[i] = testColors[i];
   }
 
-  rmt_config_t config;
-  config.rmt_mode                       = RMT_MODE_TX;
-  config.channel                        = RMT_CHANNEL_0;
-  config.gpio_num                       = 4;
-  config.mem_block_num                  = 1;
-  config.tx_config.loop_en              = 0;
-  config.tx_config.carrier_en           = 0;
-  config.tx_config.idle_output_en       = 1;
-  config.tx_config.idle_level           = 0;
-  config.tx_config.carrier_duty_percent = 50;
-  config.tx_config.carrier_freq_hz      = 10000;
-  config.tx_config.carrier_level        = 1;
-  config.clk_div                        = 8;
-
-  ESP_ERROR_CHECK(rmt_config(&config));
-  ESP_ERROR_CHECK(rmt_driver_install(config.channel, 0, 0));
+  init();
 
   // Led config
   volatile struct led_config conf;
@@ -43,8 +29,8 @@ void app_main(){
   conf.section_length = 10;
   conf.section_offset = 0;
   conf.section_colors = (malloc(conf.section_length * sizeof(section_colors_t)));
-  conf.fade           = 1;
-  conf.walk           = 0;
+  conf.fade           = 0;
+  conf.walk           = 1;
   conf.walk_rate      = 25;
   conf.smooth         = 1;
   conf.fadeWalk       = 0;
@@ -65,13 +51,18 @@ void app_main(){
   while(1){
     printf("sizeof leds %d\n", sizeof(leds));
     printf("Changing light\n");
-    ledEngine(conf, leds, config);
+    ledEngine(conf, leds);
 
     vTaskDelay( UPDATE_FREQ_MS / portTICK_PERIOD_MS); 
   }
 }
 
-void ledEngine(struct led_config led_conf, struct led_struct *leds, rmt_config_t rmt_conf){
+void init(){
+  ESP_ERROR_CHECK(rmt_config(&rmt_conf));
+  ESP_ERROR_CHECK(rmt_driver_install(rmt_conf.channel, 0, 0));
+}
+
+void ledEngine(struct led_config led_conf, struct led_struct *leds){
   static uint16_t  fade_t         = 0;
   static uint16_t  walk_t         = 0;
   static uint16_t  fade_walk_t    = 0;
@@ -81,8 +72,15 @@ void ledEngine(struct led_config led_conf, struct led_struct *leds, rmt_config_t
   TickType_t       LastWakeTime;
   int i;
 
+  if(led_conf.smooth == 1){
+    for(i = 0; i < 15; i++){
+      fadeWalk(leds, led_conf);
+    }
+  }
+
+
   setLeds(leds, led_conf);
-  outputLeds(rmt_conf, leds, led_conf);
+  outputLeds(leds, led_conf);
 
   while(1){
     LastWakeTime = xTaskGetTickCount();
@@ -91,7 +89,7 @@ void ledEngine(struct led_config led_conf, struct led_struct *leds, rmt_config_t
       fade_t = 0;
       fade_iteration = fade(led_conf, leds, fade_iteration);
       setLeds(leds, led_conf);
-      outputLeds(rmt_conf, leds, led_conf);
+      outputLeds(leds, led_conf);
 
       if(fade_iteration == 110){
         /* if(fade_iteration == led_conf.fadeRate){ */
@@ -114,14 +112,14 @@ void ledEngine(struct led_config led_conf, struct led_struct *leds, rmt_config_t
     if(walk_t >= led_conf.walk_rate && led_conf.walk){
       walk_t = 0;
       stepForward(leds, &led_conf);
-      outputLeds(rmt_conf, leds, led_conf);
+      outputLeds(leds, led_conf);
     }
 
     if(fade_walk_t >= led_conf.fadeWalkRate && led_conf.fadeWalk){
       fade_walk_t = 0;
       fadeWalk(leds, led_conf);
       setLeds(leds, led_conf);
-      outputLeds(rmt_conf, leds, led_conf);
+      outputLeds(leds, led_conf);
     }
 
     fade_t += 1;
@@ -129,7 +127,7 @@ void ledEngine(struct led_config led_conf, struct led_struct *leds, rmt_config_t
     fade_walk_t += 1;
     /* vTaskDelay(1 / portTICK_PERIOD_MS); */
     vTaskDelayUntil( &LastWakeTime, freq);
-      
+
   }
 }
 
@@ -149,7 +147,7 @@ void setSectionFadeColors(struct led_config conf, struct led_struct *leds){
   int offset;
   for(i = 0; i < conf.section_length; i ++){
     for(j = i*(conf.length/conf.section_length); j <  (i+1)*(conf.length/conf.section_length); j ++){
-      
+
       if(j + conf.section_offset < 0)
         offset = (conf.length + j + conf.section_offset) % conf.length;
       else
@@ -161,13 +159,6 @@ void setSectionFadeColors(struct led_config conf, struct led_struct *leds){
       leds[offset].fadeB = conf.section_colors[i].blue;
     }
   }
-  if(conf.smooth == 1){
-    for(i = 0; i < 15; i++){
-      fadeWalk(leds, conf);
-      setLeds(leds, conf);
-    }
-  }
-
 
 }
 
@@ -176,7 +167,7 @@ void setFadeColorsSection(struct led_config conf, struct led_struct *leds){
   int offset;
   for(i = 0; i < conf.section_length; i ++){
     for(j = i*(conf.length/conf.section_length); j <  (i+1)*(conf.length/conf.section_length); j ++){
-      
+
       if(j + conf.section_offset < 0)
         offset = (conf.length + j + conf.section_offset) % conf.length;
       else
@@ -204,7 +195,7 @@ int fade(struct led_config conf, struct led_struct *leds, uint8_t it){
   }
   if(conf.fadeRate - it == 0)
     return 1;
-  else 
+  else
     return (it + 1);
 }
 
@@ -222,7 +213,7 @@ void setSectionColors(struct led_config conf, struct led_struct *leds){
   /* } */
 }
 
-void outputLeds(rmt_config_t rmt_conf, struct led_struct *leds, struct led_config led_conf){
+void outputLeds(struct led_struct *leds, struct led_config led_conf){
   int i;
   ESP_ERROR_CHECK(rmt_write_items(rmt_conf.channel, leds[0].item, 24, 1));
   for(i = 0; i < led_conf.length; i ++){
@@ -273,7 +264,7 @@ void setBrightness(uint8_t brightness, uint8_t start, uint8_t stop, rmt_item32_t
       item[i] = *zeroItem;
       /* printf("0 "); */
     }
-    
+
   }
   /* printf("\n"); */
 }

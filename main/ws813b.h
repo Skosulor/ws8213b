@@ -56,7 +56,7 @@ const rmt_item32_t oneItem[] =
 {
 {{{
    8,
-   1,   
+   1,
    4,
    0
 }}}
@@ -66,13 +66,30 @@ const rmt_item32_t zeroItem[] =
 {
 {{{
    4,
-   1,   
+   1,
    8,
    0
 }}}
 };
 
-void outputLeds(rmt_config_t rmt_conf, struct led_struct *leds, struct led_config led_conf);
+rmt_config_t rmt_conf ={
+
+  .rmt_mode                       = RMT_MODE_TX,
+  .channel                        = RMT_CHANNEL_0,
+  .gpio_num                       = 4,
+  .mem_block_num                  = 1,
+  .tx_config.loop_en              = 0,
+  .tx_config.carrier_en           = 0,
+  .tx_config.idle_output_en       = 1,
+  .tx_config.idle_level           = 0,
+  .tx_config.carrier_duty_percent = 50,
+  .tx_config.carrier_freq_hz      = 10000,
+  .tx_config.carrier_level        = 1,
+  .clk_div                        = 8,
+};
+
+void init();
+void outputLeds(struct led_struct *leds, struct led_config led_conf);
 void setLed(rmt_item32_t *item, uint8_t red, uint8_t blue, uint8_t green);
 void setRed(uint8_t brightness, rmt_item32_t *item);
 void setBlue(uint8_t brightness, rmt_item32_t *item);
@@ -83,7 +100,7 @@ void stepForward(struct led_struct *leds, struct led_config *conf);
 void setLeds(struct led_struct *leds, struct led_config conf);
 void pulse(struct led_struct * leds, struct led_config conf);
 void setSectionColors(struct led_config conf, struct led_struct *leds);
-void ledEngine(struct led_config led_conf, struct led_struct *leds, rmt_config_t rmt_conf);
+void ledEngine(struct led_config led_conf, struct led_struct *leds);
 int fade(struct led_config conf, struct led_struct *leds, uint8_t it);
 void fadeWalk(struct led_struct *leds, struct led_config conf);
 void setSectionFadeColors(struct led_config conf, struct led_struct *leds);

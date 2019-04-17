@@ -1,0 +1,77 @@
+#+TITLE: esp32 driver for ws813b 
+#+Author: Andreas Öhman
+
+* ws813b led strip driver
+
+A ws813b led strip library written in C for the microcontroller esp32. 
+The library have a range of functions which operates/changes the leds colors.
+The functions is not meant to be called individually but are enabled in a configuration
+file which is then read by the "ledEngine".  
+
+* Usage
+The library supports several different "modes" which is enabled in the config structure. 
+Several modes can be enabled at the same time for a unique visual effect. Each mode
+have some common configurations such as *rate*. *Rate* will determine how often a function
+operates on the led strip. 
+
+To start the ledEngine, create a led_config struct and set desired values. +Then call the init function+.
+
+** TODO init function
+
+** TODO Set colors
+
+** TODO Config array
+
+** TODO Example
+
+* Config structures
+This section describes all the structures in the library.
+
+** struct led_config
+| variable       | type    | is required | function              |
+|----------------+---------+-------------+-----------------------|
+| Length         | uint8_t | yes         | n of leds             |
+| fadeRate       | uint8_t | no          | rate of function fade |
+| section_length | uint8_t | yes         | n of section          |
+| !step          | uint8_t | no          | enable step           |
+| fade           | uint8_t | no          | enable fade           |
+| fadeRate       | uint8_t | no          | Rate of fade          |
+| fadeWalk       | uint8_t | no          | enable of fadeWalk    |
+| fadeWalkRate   | uint8_t | no          | Rate of fadeWalk      |
+| !pulse         | uint8_t | no          | enable of pulse       |
+| pulseRate      | uint8_t | no          | rat of pulse          |
+| walk           | uint8_t | no          | enable of walk        |
+| smooth         | uint8_t | no          | "smooths" the colors  |
+| section_offset | uint8_t | dont change | led offset            |
+
+
+** TODO struct led_struct 
+
+** TODO section_colors_t
+
+* Functions
+
+** Led Modes
+
+*** walk
+
+Moves each led one step backwards on the strip each update. 
+The first led will jump the the last place. 
+
+| *conf. variables* | *Purpose*          |
+|-----------------+------------------|
+| WalkRate        | Update rate (Hz) |
+| Walk            | Enable/disable   |
+
+- Associated Function:  stepForward
+
+*** TODO fade
+
+*** TODO smooth
+
+*** TODO fadeWalk
+
+** TODO support functions
+
+
+
