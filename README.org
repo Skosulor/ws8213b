@@ -1,5 +1,6 @@
-#+TITLE: esp32 driver for ws813b 
+# #+TITLE: esp32 driver for ws813b 
 #+Author: Andreas Öhman
+#+OPTIONS: ^:nil
 
 * ws813b led strip driver
 
@@ -14,18 +15,70 @@ Several modes can be enabled at the same time for a unique visual effect. Each m
 have some common configurations such as *rate*. *Rate* will determine how often a function
 operates on the led strip. 
 
-To start the ledEngine, create a led_config struct and set desired values. +Then call the init function+.
+To start the ledEngine, create a led_config struct and set desired values to its
+members. Define the colors you want to display on the led in a /section_colors_t/ structure
+and call initColors.  +Then call the init function and ledEngine with correct arguments.+
 
-** sdkconfig 
+*** TODO 
+
+- Remove need to create and allocate memory for /led_struct/
+- Move /leds/ to *ws813b.c* 
+
+
+** sdkconfig !IMPORTANT
 *CONFIG_FREERTOS_HZ* Must be set to 1000 in sdkconfig for the rate and frequency variables to 
 function as intended. If not set the the default is 100 and the update rate might not be as
 fast as desired for some modes. It is however possible to leave it as is.
-** TODO init function
+
+*CONFIG_MAIN_TASK_STACK_SIZE* must be increased to accomodate the size of all the structures.
+It is probably possible to use freertos /xCreateTask()/ to create a task in which the library
+is used. This is the end goal inteded way of using the library but it has not yet been 
+tested.
+
+** init function
+Call *init()* to initialize the library. The function is required to initialize the
+rmt library correctly by defining *rmt_conf* and calling /rmt_config/ and /rmt_driver_install/.
+
+- Library used: *driver/rmt.h*
+- Variables and structures:
+  
+|---------------------------+---------------|
+| Variable                  |         Value |
+| /                         | <             |
+|---------------------------+---------------|
+| *struct rmt_conf*           |               |
+|---------------------------+---------------|
+| rmt_mode                  |   RMT_MODE_TX |
+| channel                   | RMT_CHANNEL_0 |
+| gpio_num                  |             4 |
+| mem_block_num             |             1 |
+| clk_div                   |             8 |
+|---------------------------+---------------|
+| *struct rmt_conf.tx_config* |               |
+|---------------------------+---------------|
+| loop_en                   |             0 |
+| carrier_en                |             0 |
+| idle_outpu_en             |             1 |
+| idle_level                |             0 |
+| carrier_duty_percent      |            50 |
+| carrier_freq_hz           |        10 000 |
+| carrier_level             |             1 |
+|---------------------------+---------------|
+
+
+*** TODO Add argument for pin n  
 
 ** TODO Set colors
 
-** TODO Config array
+To be added:
+- Different ways to set the colors 
+  - Repeating sections
+  - Mixed sections
+  - etc..
+- Set new colors in runtime
+- setFadeColors function
 
+** TODO Config array
 ** TODO Example
 
 * Config structures

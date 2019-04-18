@@ -25,9 +25,7 @@ void app_main(){
   conf.fadeWalkRate   = 3;
   struct led_struct leds[conf.length];
 
-  for(i = 0; i < conf.section_length; i++){
-    conf.section_colors[i] = testColors[i];
-  }
+  initColors(&conf, testColors);
 
   setSectionColors(conf, leds);
   setLeds(leds, conf);

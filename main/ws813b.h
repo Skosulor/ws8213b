@@ -78,6 +78,8 @@ rmt_config_t rmt_conf;
 
 
 void init();
+void initColors(struct led_config* led_conf, struct section_colors_t* color);
+void ledEngine(struct led_config led_conf, struct led_struct* leds);
 void outputLeds(struct led_struct *leds, struct led_config led_conf);
 void setLed(rmt_item32_t *item, uint8_t red, uint8_t blue, uint8_t green);
 void setRed(uint8_t brightness, rmt_item32_t *item);
@@ -89,7 +91,6 @@ void stepForward(struct led_struct *leds, struct led_config *conf);
 void setLeds(struct led_struct *leds, struct led_config conf);
 void pulse(struct led_struct * leds, struct led_config conf);
 void setSectionColors(struct led_config conf, struct led_struct *leds);
-void ledEngine(struct led_config led_conf, struct led_struct *leds);
 int fade(struct led_config conf, struct led_struct *leds, uint8_t it);
 void fadeWalk(struct led_struct *leds, struct led_config conf);
 void setSectionFadeColors(struct led_config conf, struct led_struct *leds);

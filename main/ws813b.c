@@ -91,6 +91,13 @@ void ledEngine(struct led_config led_conf, struct led_struct *leds){
   }
 }
 
+void initColors(struct led_config *led_conf, struct section_colors_t *color){
+  int i;
+  for(i = 0; i < led_conf->section_length; i ++){
+    led_conf->section_colors[i] = color[i];
+  }
+}
+
 void fadeWalk(struct led_struct *leds, struct led_config conf){
   int i;
   for(i = 0; i < conf.length; i++){
