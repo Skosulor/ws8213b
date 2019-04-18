@@ -23,42 +23,75 @@ void init(){
   ESP_ERROR_CHECK(rmt_driver_install(rmt_conf.channel, 0, 0));
 }
 
-void ledEngine(struct led_config led_conf, struct led_struct *leds){
+void ledEngine(struct led_config *led_conf, struct led_struct *leds){
+  volatile uint8_t fade_iteration = 0;
+  static uint16_t  fade_walk_t    = 0;
   static uint16_t  fade_t         = 0;
   static uint16_t  walk_t         = 0;
-  static uint16_t  fade_walk_t    = 0;
+  static uint16_t  config_t       = 0;
   static uint8_t   fade_dir       = 0;
-  volatile uint8_t fade_iteration = 0;
-  const TickType_t freq           = 1;
+  static uint16_t  debug_t        = 0;
+  const TickType_t freq           = UPDATE_FREQ_MS;
   TickType_t       LastWakeTime;
-  int i;
+  int              i;
+  static uint8_t   cc;          // Current config
+  static uint8_t   nc;          // Number of configs
 
-  printf("led_conf:\n walk: %d\n fade: %d\n smooth: %d\n", led_conf.walk, led_conf.fade, led_conf.smooth);
-    for(i = 0; i < led_conf.smooth; i++){
-      fadeWalk(leds, led_conf);
+  cc = nc;
+  nc = led_conf[0].nOfConfigs;
+  debug_t = led_conf[nc].debugRate + 1;
+
+
+    for(i = 0; i < led_conf[cc].smooth; i++){
+      fadeWalk(leds, led_conf[cc]);
     }
 
-
-  setLeds(leds, led_conf);
-  outputLeds(leds, led_conf);
+  setLeds(leds, led_conf[cc]);
+  outputLeds(leds, led_conf[cc]);
 
   while(1){
     LastWakeTime = xTaskGetTickCount();
 
-    if(fade_t >= 5 && led_conf.fade){
+    /* ------ */
+    /* DEBUG */
+    /* ------*/
+
+    if(debug_t > led_conf[cc].debugRate){
+      debug_t = 0;
+      DPRINT((" current conf: %d\n walk: %d\n fade: %d\n smooth: %d\n config_t %d\n\n",
+              cc, led_conf[cc].walk, led_conf[cc].fade, led_conf[cc].smooth, config_t));
+
+      DPRINT((" DebugRate: %d\n nc: %d\n led_conf[cc].nOfConfigs: %d\n\n",
+              led_conf[cc].debugRate, nc, led_conf[cc].nOfConfigs));
+    }
+
+    /* ------------- */
+    /* Config Update */
+    /* --------------*/
+
+    if(config_t > led_conf[cc].configRate && led_conf[nc].cycleConfig){
+      config_t = 0;
+      cc = ((cc + 1) % nc);
+    }
+
+    /* --------- */
+    /* fade mode */
+    /* ----------*/
+
+    if(fade_t >= 5 && led_conf[cc].fade){
       fade_t = 0;
-      fade_iteration = fade(led_conf, leds, fade_iteration);
-      setLeds(leds, led_conf);
-      outputLeds(leds, led_conf);
+      fade_iteration = fade(led_conf[cc], leds, fade_iteration);
+      setLeds(leds, led_conf[cc]);
+      outputLeds(leds, led_conf[cc]);
 
       if(fade_iteration == 110){
-        /* if(fade_iteration == led_conf.fadeRate){ */
+        /* if(fade_iteration == led_conf[cc].fadeRate){ */
         if(fade_dir == 0){
-          setSectionFadeColors(led_conf, leds);
+          setSectionFadeColors(led_conf[cc], leds);
           fade_dir = 1;
         }
         else{
-          for(i = 0; i < led_conf.length; i ++){
+          for(i = 0; i < led_conf[cc].length; i ++){
             leds[i].fadeR = 0;
             leds[i].fadeG = 0;
             leds[i].fadeB = 0;
@@ -69,25 +102,38 @@ void ledEngine(struct led_config led_conf, struct led_struct *leds){
       }
     }
 
-    if(walk_t >= led_conf.walk_rate && led_conf.walk){
+    /* --------- */
+    /* walk mode */
+    /* ----------*/
+
+    if(walk_t >= led_conf[cc].walk_rate && led_conf[cc].walk){
       walk_t = 0;
-      stepForward(leds, &led_conf);
-      outputLeds(leds, led_conf);
+      stepForward(leds, &led_conf[cc]);
+      outputLeds(leds, led_conf[cc]);
     }
 
-    if(fade_walk_t >= led_conf.fadeWalkRate && led_conf.fadeWalk){
+    /* -------------- */
+    /* fade_walk mode */
+    /* ---------------*/
+
+    if(fade_walk_t >= led_conf[cc].fadeWalkRate && led_conf[cc].fadeWalk){
       fade_walk_t = 0;
-      fadeWalk(leds, led_conf);
-      setLeds(leds, led_conf);
-      outputLeds(leds, led_conf);
+      fadeWalk(leds, led_conf[cc]);
+      setLeds(leds, led_conf[cc]);
+      outputLeds(leds, led_conf[cc]);
     }
 
-    fade_t += 1;
-    walk_t += 1;
+    /* ----------- */
+    /* time Update */
+    /* ------------*/
+
+    fade_t      += 1;
+    walk_t      += 1;
+    config_t    += 1;
+    debug_t     += 1;
     fade_walk_t += 1;
     /* vTaskDelay(1 / portTICK_PERIOD_MS); */
     vTaskDelayUntil( &LastWakeTime, freq);
-
   }
 }
 
@@ -265,7 +311,7 @@ void stepFade(struct led_struct *led, struct led_config conf,
 
 }
 
-void pulse(struct led_struct * leds, struct led_config conf){
 
+void pulse(struct led_struct * leds, struct led_config conf){
 }
 
