@@ -10,22 +10,28 @@ The functions is not meant to be called individually but are enabled in a config
 file which is then read by the "ledEngine".  
 
 * Usage
+
 The library supports several different "modes" which is enabled in the config structure. 
 Several modes can be enabled at the same time for a unique visual effect. Each mode
 have some common configurations such as *rate*. *Rate* will determine how often a function
 operates on the led strip. 
 
-To start the ledEngine, create a led_config struct and set desired values to its
-members. Define the colors you want to display on the led in a /section_colors_t/ structure
-and call initColors.  +Then call the init function and ledEngine with correct arguments.+
+/How to use in steps/
+1. Create an array of /led_config/
+2. Set desired modes  ( see [[*init function][init function]] and [[*Config structures][Config structures]] )
+3. Set desired colors ( see[[*Set colors][ Set colors]] )
+4. Call ledEngine with your /led_config/ array as argument.
+
+
 
 *** TODO 
 
 - Remove need to create and allocate memory for /led_struct/
 - Move /leds/ to *ws813b.c* 
 
-
+  
 ** sdkconfig !IMPORTANT
+
 *CONFIG_FREERTOS_HZ* Must be set to 1000 in sdkconfig for the rate and frequency variables to 
 function as intended. If not set the the default is 100 and the update rate might not be as
 fast as desired for some modes. It is however possible to leave it as is.
@@ -36,15 +42,17 @@ is used. This is the end goal inteded way of using the library but it has not ye
 tested.
 
 ** init function
+
 Call *init()* to initialize the library. The function is required to initialize the
 rmt library correctly by defining *rmt_conf* and calling /rmt_config/ and /rmt_driver_install/.
 
 - Library used: *driver/rmt.h*
 - Variables and structures:
+
+  TODO Add argument for pin n  
   
 |---------------------------+---------------|
 | Variable                  |         Value |
-| /                         | <             |
 |---------------------------+---------------|
 | *struct rmt_conf*           |               |
 |---------------------------+---------------|
@@ -65,9 +73,6 @@ rmt library correctly by defining *rmt_conf* and calling /rmt_config/ and /rmt_d
 | carrier_level             |             1 |
 |---------------------------+---------------|
 
-
-*** TODO Add argument for pin n  
-
 ** TODO Set colors
 
 To be added:
@@ -78,7 +83,6 @@ To be added:
 - Set new colors in runtime
 - setFadeColors function
 
-** TODO Config array
 ** TODO Example
 
 * Config structures

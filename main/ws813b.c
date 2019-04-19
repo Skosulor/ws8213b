@@ -41,7 +41,6 @@ void ledEngine(struct led_config *led_conf, struct led_struct *leds){
   nc = led_conf[0].nOfConfigs;
   debug_t = led_conf[nc].debugRate + 1;
 
-
     for(i = 0; i < led_conf[cc].smooth; i++){
       fadeWalk(leds, led_conf[cc]);
     }
@@ -132,7 +131,6 @@ void ledEngine(struct led_config *led_conf, struct led_struct *leds){
     config_t    += 1;
     debug_t     += 1;
     fade_walk_t += 1;
-    /* vTaskDelay(1 / portTICK_PERIOD_MS); */
     vTaskDelayUntil( &LastWakeTime, freq);
   }
 }

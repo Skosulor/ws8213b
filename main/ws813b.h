@@ -4,8 +4,7 @@
 #define UPDATE_FREQ 1000
 #define UPDATE_FREQ_MS ((1000/UPDATE_FREQ))
 
-
-/* #define DEBUG 1 */
+/* #define DEBUG */
 #ifdef DEBUG
 # define DPRINT(x) printf x
 #else
@@ -86,6 +85,7 @@ static const rmt_item32_t zeroItem[] =
 };
 
 rmt_config_t rmt_conf;
+
 
 
 void init();
