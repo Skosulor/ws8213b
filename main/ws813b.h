@@ -20,7 +20,7 @@ struct led_struct
   uint8_t fadeR;
   uint8_t fadeG;
   uint8_t fadeB;
-  uint8_t pulseDir;
+  uint8_t dir;
 
 } led_struct;
 
@@ -31,7 +31,7 @@ struct section_colors_t
   uint8_t green;
 } section_colors_t;
 
-struct led_config
+struct mode_config
 {
   uint32_t length;
   uint32_t configRate;
@@ -41,6 +41,8 @@ struct led_config
   uint8_t step;
   uint8_t fade;
   uint8_t fadeRate;
+  uint8_t fadeIteration;
+  uint8_t fadeDir;
   uint8_t fadeWalk;
   uint8_t fadeWalkRate;
   uint8_t fadeWalkFreq;
@@ -52,7 +54,7 @@ struct led_config
   uint8_t cycleConfig;
   uint8_t nOfConfigs;
   struct section_colors_t *section_colors;
-} led_config;
+} mode_config;
 
 static const rmt_item32_t setItem[] =
 {
@@ -85,29 +87,33 @@ static const rmt_item32_t zeroItem[] =
 };
 
 rmt_config_t rmt_conf;
+struct led_struct *leds;
 
 
 
 void init();
-void initColors(struct led_config* led_conf, struct section_colors_t* color);
-void ledEngine(struct led_config *led_conf, struct led_struct* leds);
-void outputLeds(struct led_struct *leds, struct led_config led_conf);
+void initColors(struct mode_config *mode_conf, struct section_colors_t* color);
+void ledEngine(struct mode_config  *mode_conf);
+void outputLeds(struct led_struct *leds, struct mode_config  mode_conf);
 void setLed(rmt_item32_t *item, uint8_t red, uint8_t blue, uint8_t green);
 void setRed(uint8_t brightness, rmt_item32_t *item);
 void setBlue(uint8_t brightness, rmt_item32_t *item);
 void setGreen(uint8_t brightness, rmt_item32_t *item);
 void setBrightness(uint8_t brightness, uint8_t start, uint8_t stop, rmt_item32_t *item);
 void printDuration0(rmt_item32_t *item);
-void stepForward(struct led_struct *leds, struct led_config *conf);
-void setLeds(struct led_struct *leds, struct led_config conf);
-void pulse(struct led_struct * leds, struct led_config conf);
-void setSectionColors(struct led_config conf, struct led_struct *leds);
-int fade(struct led_config conf, struct led_struct *leds, uint8_t it);
-void fadeWalk(struct led_struct *leds, struct led_config conf);
-void setSectionFadeColors(struct led_config conf, struct led_struct *leds);
-void setFadeColorsSection(struct led_config conf, struct led_struct *leds);
-void stepFade(struct led_struct *led, struct led_config conf,
+void stepForward(struct led_struct *leds, struct mode_config  *conf);
+void setLeds(struct led_struct *leds, struct mode_config  conf);
+void pulse(struct led_struct * leds, struct mode_config  conf);
+void setSectionColors(struct mode_config  conf, struct led_struct *leds);
+void fadeWalk(struct led_struct *leds, struct mode_config  conf);
+void setSectionFadeColors(struct mode_config  conf, struct led_struct *leds);
+void setFadeColorsSection(struct mode_config  conf, struct led_struct *leds);
+void fadeTo(struct mode_config* conf);
+void fadeZero(struct mode_config *conf);
+void stepFade(struct led_struct *led, struct mode_config  conf,
               uint8_t rTarget, uint8_t bTarget, uint8_t gTarget);
+
+
 
 
 #endif

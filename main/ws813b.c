@@ -4,7 +4,7 @@
 #include "freertos/task.h"
 #include "ws813b.h"
 
-void init(){
+void init(struct mode_config *mode_conf){
 
   rmt_conf.rmt_mode                       = RMT_MODE_TX;
   rmt_conf.channel                        = RMT_CHANNEL_0;
@@ -21,15 +21,18 @@ void init(){
 
   ESP_ERROR_CHECK(rmt_config(&rmt_conf));
   ESP_ERROR_CHECK(rmt_driver_install(rmt_conf.channel, 0, 0));
+
+  leds = malloc(sizeof(led_struct) * mode_conf[0].length);
+
+
+
 }
 
-void ledEngine(struct led_config *led_conf, struct led_struct *leds){
-  volatile uint8_t fade_iteration = 0;
+void ledEngine(struct mode_config  *mode_conf){
   static uint16_t  fade_walk_t    = 0;
   static uint16_t  fade_t         = 0;
   static uint16_t  walk_t         = 0;
   static uint16_t  config_t       = 0;
-  static uint8_t   fade_dir       = 0;
   static uint16_t  debug_t        = 0;
   const TickType_t freq           = UPDATE_FREQ_MS;
   TickType_t       LastWakeTime;
@@ -38,15 +41,22 @@ void ledEngine(struct led_config *led_conf, struct led_struct *leds){
   static uint8_t   nc;          // Number of configs
 
   cc = nc;
-  nc = led_conf[0].nOfConfigs;
-  debug_t = led_conf[nc].debugRate + 1;
+  nc = mode_conf[0].nOfConfigs;
+  debug_t = mode_conf[nc].debugRate + 1;
 
-    for(i = 0; i < led_conf[cc].smooth; i++){
-      fadeWalk(leds, led_conf[cc]);
+
+    for(i = 0; i < mode_conf[cc].smooth; i++){
+      fadeWalk(leds, mode_conf[cc]);
     }
 
-  setLeds(leds, led_conf[cc]);
-  outputLeds(leds, led_conf[cc]);
+  for(i = 0; i < mode_conf[0].length; i ++){
+    leds[i].fadeR = leds[i].r;
+    leds[i].fadeG = leds[i].g;
+    leds[i].fadeB = leds[i].b;
+  }
+
+  setLeds(leds, mode_conf[cc]);
+  outputLeds(leds, mode_conf[cc]);
 
   while(1){
     LastWakeTime = xTaskGetTickCount();
@@ -55,20 +65,20 @@ void ledEngine(struct led_config *led_conf, struct led_struct *leds){
     /* DEBUG */
     /* ------*/
 
-    if(debug_t > led_conf[cc].debugRate){
+    if(debug_t > mode_conf[cc].debugRate){
       debug_t = 0;
       DPRINT((" current conf: %d\n walk: %d\n fade: %d\n smooth: %d\n config_t %d\n\n",
-              cc, led_conf[cc].walk, led_conf[cc].fade, led_conf[cc].smooth, config_t));
+              cc, mode_conf[cc].walk, mode_conf[cc].fade, mode_conf[cc].smooth, config_t));
 
-      DPRINT((" DebugRate: %d\n nc: %d\n led_conf[cc].nOfConfigs: %d\n\n",
-              led_conf[cc].debugRate, nc, led_conf[cc].nOfConfigs));
+      DPRINT((" DebugRate: %d\n nc: %d\n mode_conf[cc].nOfConfigs: %d\n\n",
+              mode_conf[cc].debugRate, nc, mode_conf[cc].nOfConfigs));
     }
 
     /* ------------- */
     /* Config Update */
     /* --------------*/
 
-    if(config_t > led_conf[cc].configRate && led_conf[nc].cycleConfig){
+    if(config_t > mode_conf[cc].configRate && mode_conf[nc].cycleConfig){
       config_t = 0;
       cc = ((cc + 1) % nc);
     }
@@ -77,49 +87,38 @@ void ledEngine(struct led_config *led_conf, struct led_struct *leds){
     /* fade mode */
     /* ----------*/
 
-    if(fade_t >= 5 && led_conf[cc].fade){
+    if(fade_t >= 2 && mode_conf[cc].fade){
       fade_t = 0;
-      fade_iteration = fade(led_conf[cc], leds, fade_iteration);
-      setLeds(leds, led_conf[cc]);
-      outputLeds(leds, led_conf[cc]);
 
-      if(fade_iteration == 110){
-        /* if(fade_iteration == led_conf[cc].fadeRate){ */
-        if(fade_dir == 0){
-          setSectionFadeColors(led_conf[cc], leds);
-          fade_dir = 1;
-        }
-        else{
-          for(i = 0; i < led_conf[cc].length; i ++){
-            leds[i].fadeR = 0;
-            leds[i].fadeG = 0;
-            leds[i].fadeB = 0;
-          }
-          fade_dir = 0;
-        }
-        fade_iteration = 0;
-      }
+      if(mode_conf[cc].fadeDir == 0)
+        fadeTo(&mode_conf[cc]);
+      else
+        fadeZero(&mode_conf[cc]);
+
+      setLeds(leds, mode_conf[cc]);
+      outputLeds(leds, mode_conf[cc]);
+
     }
 
     /* --------- */
     /* walk mode */
     /* ----------*/
 
-    if(walk_t >= led_conf[cc].walk_rate && led_conf[cc].walk){
+    if(walk_t >= mode_conf[cc].walk_rate && mode_conf[cc].walk){
       walk_t = 0;
-      stepForward(leds, &led_conf[cc]);
-      outputLeds(leds, led_conf[cc]);
+      stepForward(leds, &mode_conf[cc]);
+      outputLeds(leds, mode_conf[cc]);
     }
 
     /* -------------- */
     /* fade_walk mode */
     /* ---------------*/
 
-    if(fade_walk_t >= led_conf[cc].fadeWalkRate && led_conf[cc].fadeWalk){
+    if(fade_walk_t >= mode_conf[cc].fadeWalkRate && mode_conf[cc].fadeWalk){
       fade_walk_t = 0;
-      fadeWalk(leds, led_conf[cc]);
-      setLeds(leds, led_conf[cc]);
-      outputLeds(leds, led_conf[cc]);
+      fadeWalk(leds, mode_conf[cc]);
+      setLeds(leds, mode_conf[cc]);
+      outputLeds(leds, mode_conf[cc]);
     }
 
     /* ----------- */
@@ -135,14 +134,15 @@ void ledEngine(struct led_config *led_conf, struct led_struct *leds){
   }
 }
 
-void initColors(struct led_config *led_conf, struct section_colors_t *color){
+void initColors(struct mode_config  *mode_conf, struct section_colors_t *color){
   int i;
-  for(i = 0; i < led_conf->section_length; i ++){
-    led_conf->section_colors[i] = color[i];
+  for(i = 0; i < mode_conf->section_length; i ++){
+    mode_conf->section_colors[i] = color[i];
   }
 }
 
-void fadeWalk(struct led_struct *leds, struct led_config conf){
+
+void fadeWalk(struct led_struct *leds, struct mode_config  conf){
   int i;
   for(i = 0; i < conf.length; i++){
     /* printf("Red: %d, i: %d\n", leds[i].r, i); */
@@ -153,9 +153,10 @@ void fadeWalk(struct led_struct *leds, struct led_config conf){
   }
 }
 
-void setSectionFadeColors(struct led_config conf, struct led_struct *leds){
+void setSectionFadeColors(struct mode_config  conf, struct led_struct *leds){
   int i,j;
   int offset;
+
   for(i = 0; i < conf.section_length; i ++){
     for(j = i*(conf.length/conf.section_length); j <  (i+1)*(conf.length/conf.section_length); j ++){
 
@@ -173,7 +174,7 @@ void setSectionFadeColors(struct led_config conf, struct led_struct *leds){
 
 }
 
-void setFadeColorsSection(struct led_config conf, struct led_struct *leds){
+void setFadeColorsSection(struct mode_config  conf, struct led_struct *leds){
   int i,j;
   int offset;
   for(i = 0; i < conf.section_length; i ++){
@@ -192,25 +193,43 @@ void setFadeColorsSection(struct led_config conf, struct led_struct *leds){
   }
 }
 
-int fade(struct led_config conf, struct led_struct *leds, uint8_t it){
+void fadeZero(struct mode_config *conf){
   int i;
-  for(i = 0; i < conf.length; i++){
+  static uint8_t it = 0;
+  for(i = 0; i < conf->length; i++){
+    // TODO define a variable for 128
+    leds[i].r = leds[i].r - ((leds[i].r - 0)/(128 - it));
+    leds[i].g = leds[i].g - ((leds[i].g - 0)/(128 - it));
+    leds[i].b = leds[i].b - ((leds[i].b - 0)/(128 - it));
+  }
+
+  it++;
+  if(it == conf->fadeIteration){
+    it = 0;
+    conf->fadeDir = 0;
+  }
+}
+
+void fadeTo(struct mode_config *conf){
+  int i;
+  static uint8_t it = 0;
+
+  for(i = 0; i < conf->length; i++){
+    // TODO define a variable for 128
     leds[i].r = leds[i].r - ((leds[i].r - leds[i].fadeR)/(128 - it));
     leds[i].g = leds[i].g - ((leds[i].g - leds[i].fadeG)/(128 - it));
     leds[i].b = leds[i].b - ((leds[i].b - leds[i].fadeB)/(128 - it));
-
-    /* leds[i].r = leds[i].r - ((leds[i].r - leds[i].fadeR)/(conf.fadeRate - it)); */
-    /* leds[i].g = leds[i].g - ((leds[i].g - leds[i].fadeG)/(conf.fadeRate - it)); */
-    /* leds[i].b = leds[i].b - ((leds[i].b - leds[i].fadeB)/(conf.fadeRate - it)); */
-
   }
-  if(conf.fadeRate - it == 0)
-    return 1;
-  else
-    return (it + 1);
+
+  it++;
+  if(it == conf->fadeIteration){
+    it = 0;
+    conf->fadeDir = 1;
+  }
 }
 
-void setSectionColors(struct led_config conf, struct led_struct *leds){
+
+void setSectionColors(struct mode_config  conf, struct led_struct *leds){
   int i,j;
   for(i = 0; i < conf.section_length; i ++){
     for(j = i*(conf.length/conf.section_length); j <  (i+1)*(conf.length/conf.section_length); j ++){
@@ -224,10 +243,10 @@ void setSectionColors(struct led_config conf, struct led_struct *leds){
   /* } */
 }
 
-void outputLeds(struct led_struct *leds, struct led_config led_conf){
+void outputLeds(struct led_struct *leds, struct mode_config  mode_conf){
   int i;
   ESP_ERROR_CHECK(rmt_write_items(rmt_conf.channel, leds[0].item, 24, 1));
-  for(i = 0; i < led_conf.length; i ++){
+  for(i = 0; i < mode_conf.length; i ++){
     ESP_ERROR_CHECK(rmt_write_items(rmt_conf.channel, leds[i].item, 24, 1));
     /* printf("i: %d, R: %d\n", i, leds[i].r); */
   }
@@ -236,12 +255,11 @@ void outputLeds(struct led_struct *leds, struct led_config led_conf){
 
 }
 
-void setLeds(struct led_struct *leds, struct led_config conf){
+void setLeds(struct led_struct *leds, struct mode_config  conf){
   int i;
   for(i = 0; i < conf.length; i ++){
     setLed(leds[i].item, leds[i].r, leds[i].b, leds[i].g);
   }
-
 }
 
 void setLed(rmt_item32_t *item, uint8_t red, uint8_t blue, uint8_t green){
@@ -287,7 +305,7 @@ void printDuration0(rmt_item32_t *item){
   }
 }
 
-void stepForward(struct led_struct *leds, struct led_config *conf){
+void stepForward(struct led_struct *leds, struct mode_config  *conf){
   int i;
   struct led_struct temp = leds[0];
   /* printf("led one red = %d\n", leds[0].r); */
@@ -300,7 +318,7 @@ void stepForward(struct led_struct *leds, struct led_config *conf){
     conf->section_offset = 0;
 }
 
-void stepFade(struct led_struct *led, struct led_config conf,
+void stepFade(struct led_struct *led, struct mode_config  conf,
               uint8_t rTarget, uint8_t bTarget, uint8_t gTarget){
 
   led->r = led->r - (((double)led->r-(double)rTarget)/(double)conf.fadeRate);
@@ -310,6 +328,6 @@ void stepFade(struct led_struct *led, struct led_config conf,
 }
 
 
-void pulse(struct led_struct * leds, struct led_config conf){
+void pulse(struct led_struct * leds, struct mode_config  conf){
 }
 

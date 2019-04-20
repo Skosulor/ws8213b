@@ -3,6 +3,7 @@
 #+OPTIONS: ^:nil
 # #+OPTIONS: \n:t
 #+LATEX_HEADER: \usepackage[parfill]{parskip}
+
 * ws813b led strip driver
 
 A ws813b led strip library written in C for the microcontroller esp32. This library is created to give
@@ -21,6 +22,7 @@ What to expect of this library:
 - TODO Modes which operates on desired sections
 
 * Usage
+** Short manual
 
 For a super quick introduction see[[*Minimal Example][ Minimal Example]].
 
@@ -36,7 +38,7 @@ The colors of the led strip are divided into sections and the number of leds whi
 to one section is automatically configured. 
 
 /How to use in steps/:
-0. Configure sdkconfig ( see [[*sdkconfig][sdkconfig]] ) 
+0. Configure sdkconfig ( see [[*sdkconfig][sdkconfig]] ) or use the sdkconfig included
 1. Create an array of /led_config/
 2. Set desired modes  ( see [[*init function][init function]] and [[*Config structures][Config structures]] )
 3. Set desired colors ( see[[*Set colors][ Set colors]] )
@@ -45,8 +47,8 @@ to one section is automatically configured.
 
 The available modes  can be found under [[*Led Modes][Led Modes]] .
 
-  
 ** sdkconfig
+
 *CONFIG_FREERTOS_HZ* Must be set to 1000 in sdkconfig for the rate and frequency
 variables to function as intended. If not set the the default is 100 and the
 update rate might not be as fast as desired for some modes. It is however
@@ -80,18 +82,17 @@ To be added:
 - setFadeColors function
 
 ** TODO Minimal Example
-
 * Config structures
 
-This section describes all the structures in the library.
+This section describes all the structures in the library. Under manually configured
+you'll find the structures you need to configure, under automatically configured
+you'll find structures the initiliazing function will take care of (you can ignore theese).
 
-** Manually configure
+** Manually Configured
 
 Configuration structures which needs to be set manually. 
 
-*** struct led_config
-
-TODO rename to mode_config or modeConfig
+*** struct mode_config 
 
 The mode configuration structure.  Used to set modes and some basic configurations.
 To enable a mode set its respective variable named after the mode to a non-zero value.
@@ -108,6 +109,7 @@ to initialize the library correctly.
 It might cause errors if this is not true. A feature is to be implemented which 
 handles this.
 
+|----------------+---------+-------------+-----------------------|
 | variable       | type    | is required | function              |
 |----------------+---------+-------------+-----------------------|
 | length         | uint8_t | *yes*         | n of leds             |
@@ -123,8 +125,7 @@ handles this.
 | pulseRate      | uint8_t | no          | rat of pulse          |
 | walk           | uint8_t | no          | enable of walk        |
 | smooth         | uint8_t | no          | "smooths" the colors  |
-
-
+|----------------+---------+-------------+-----------------------|
 
 *** section_colors_t
 
@@ -141,8 +142,8 @@ corresponds to one sections color.
 | green    | uint8_t | value of red  |
 |----------+---------+---------------|
 
-
 ** Automatically configured
+
 A list of structures which do not need to be configured or altered when using 
 this library. If you have no intrestest in tinkering or learning how the internals
 of this library works you can skip this section.
@@ -169,7 +170,6 @@ integer is a direction teller, however no mode is currently using it.
  | fadeB         | uint8_t | blue target value  |
  | Dir           | uint8_t | direction value    |
  |---------------+---------+--------------------|
-
 
 ***  rmt_conf
 
