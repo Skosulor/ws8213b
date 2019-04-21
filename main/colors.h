@@ -5,6 +5,21 @@
 /* feel free to add more and */
 /* make a pull request */
 
+static const struct section_colors_t red = {
+  .red = 0,
+  .blue = 255,
+  .green = 0,
+};
+static const struct section_colors_t blue = {
+  .red = 0,
+  .blue = 255,
+  .green = 0,
+};
+static const struct section_colors_t green = {
+  .red = 0,
+  .blue = 0,
+  .green = 255,
+};
 static const struct section_colors_t white = {
   .red = 255,
   .blue = 255,

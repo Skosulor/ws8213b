@@ -24,6 +24,8 @@ struct led_struct
 
 } led_struct;
 
+
+
 struct section_colors_t
 {
   uint8_t red;
@@ -41,7 +43,7 @@ struct mode_config
   uint8_t step;
   uint8_t fade;
   uint8_t fadeRate;
-  uint8_t fadeIteration;
+  uint8_t fadeIteration; // TODO rename this to something more relevant
   uint8_t fadeDir;
   uint8_t fadeWalk;
   uint8_t fadeWalkRate;
@@ -92,26 +94,29 @@ struct led_struct *leds;
 
 
 void init();
+void stepFade(struct led_struct *led, struct mode_config  conf,
+              uint8_t rTarget, uint8_t bTarget, uint8_t gTarget);
 void initColors(struct mode_config *mode_conf, struct section_colors_t* color);
 void ledEngine(struct mode_config  *mode_conf);
-void outputLeds(struct led_struct *leds, struct mode_config  mode_conf);
+void outputLeds(struct mode_config  mode_conf);
 void setLed(rmt_item32_t *item, uint8_t red, uint8_t blue, uint8_t green);
 void setRed(uint8_t brightness, rmt_item32_t *item);
 void setBlue(uint8_t brightness, rmt_item32_t *item);
 void setGreen(uint8_t brightness, rmt_item32_t *item);
 void setBrightness(uint8_t brightness, uint8_t start, uint8_t stop, rmt_item32_t *item);
 void printDuration0(rmt_item32_t *item);
-void stepForward(struct led_struct *leds, struct mode_config  *conf);
-void setLeds(struct led_struct *leds, struct mode_config  conf);
-void pulse(struct led_struct * leds, struct mode_config  conf);
-void setSectionColors(struct mode_config  conf, struct led_struct *leds);
-void fadeWalk(struct led_struct *leds, struct mode_config  conf);
-void setSectionFadeColors(struct mode_config  conf, struct led_struct *leds);
-void setFadeColorsSection(struct mode_config  conf, struct led_struct *leds);
+void stepForward(struct mode_config  *conf);
+void setLeds(struct mode_config  conf);
+void pulse(struct mode_config  conf);
+void setSectionColors(struct mode_config  conf);
+void fadeWalk(struct mode_config  conf);
+void setSectionFadeColors(struct mode_config  conf, );
+void setFadeColorsSection(struct mode_config  conf, );
 void fadeTo(struct mode_config* conf);
 void fadeZero(struct mode_config *conf);
-void stepFade(struct led_struct *led, struct mode_config  conf,
-              uint8_t rTarget, uint8_t bTarget, uint8_t gTarget);
+void resetModeConfigs(struct mode_config* conf, uint8_t nConfigs, uint16_t nleds, uint8_t nSections);
+void repeatModeZero(struct mode_config *conf);
+
 
 
 

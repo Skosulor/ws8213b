@@ -81,7 +81,36 @@ To be added:
 - Set new colors in runtime
 - setFadeColors function
 
-** TODO Minimal Example
+** Minimal Example
+
+Minimal Example for 60 leds on a strip divided into 10 different colored sections.
+The colors will be smoothed out and rotate once every 15 mS.
+*testColors* is defined in /colors.h/. 
+
+#+begin_src C
+#include "sdkconfig.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "ws813b.h"
+#include "colors.h"
+
+void app_main(){
+  volatile struct mode_config conf[2];
+  resetModeConfigs(conf, 1,   60 , 10);
+  init(conf);
+
+  conf[0].smooth    = 30;
+  conf[0].walk      = 1;
+  conf[0].walk_rate = 15;
+
+  initColors(&conf, testColors);
+  setSectionColors(conf[0], leds);
+
+  while(1)
+    ledEngine(conf);
+}
+#+end_src
+
 * Config structures
 
 This section describes all the structures in the library. Under manually configured
