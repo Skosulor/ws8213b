@@ -5,7 +5,7 @@
 #include "colors.h"
 
 #define N_CONF     2
-#define N_LEDS     60
+#define N_LEDS     120
 #define N_SECTIONS 5
 
 void app_main(){
@@ -15,14 +15,20 @@ void app_main(){
   resetModeConfigs(conf, N_CONF, N_LEDS, N_SECTIONS);
   init(conf);
 
-  conf[0].smooth    = 30;
-  conf[0].walk      = 2;
-  conf[0].walk_rate = 15;
-  conf[0].cycleConfig = 1;
-  conf[0].configRate = 250;
+  conf[0].smooth = 50;
+  conf[0].walk   = 1;
+
+  // TODO handle fade in cycleConfig
+  conf[0].walk_rate     = 15;
+  conf[0].fade          = 1;
+  conf[0].cycleConfig   = 1;
+  conf[0].configRate    = 4000;
+  conf[0].fadeIteration = 120;
+  conf[0].fadeRate      = 5;
+
   repeatModeZero(conf);
 
-  conf[1].walk_rate = 35;
+  conf[0].fade = 0;
 
   initColors(&conf, testColors);
 

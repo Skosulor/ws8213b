@@ -5,6 +5,22 @@
 #define UPDATE_FREQ_MS ((1000/UPDATE_FREQ))
 
 /* #define DEBUG */
+/* #define WALK_DEBUG */
+#define FADE_DEBUG
+
+#ifdef WALK_DEBUG
+# define WALK_DEBUG(x) printf x
+#else
+# define WALK_DEBUG(x) do {} while (0)
+#endif
+
+#ifdef FADE_DEBUG
+# define FADE_DEBUG(x) printf x
+#else
+# define FADE_DEBUG(x) do {} while (0)
+#endif
+
+
 #ifdef DEBUG
 # define DPRINT(x) printf x
 #else
@@ -110,8 +126,8 @@ void setLeds(struct mode_config  conf);
 void pulse(struct mode_config  conf);
 void setSectionColors(struct mode_config  conf);
 void fadeWalk(struct mode_config  conf);
-void setSectionFadeColors(struct mode_config  conf, );
-void setFadeColorsSection(struct mode_config  conf, );
+void setSectionFadeColors(struct mode_config  conf);
+void setFadeColorsSection(struct mode_config  conf);
 void fadeTo(struct mode_config* conf);
 void fadeZero(struct mode_config *conf);
 void resetModeConfigs(struct mode_config* conf, uint8_t nConfigs, uint16_t nleds, uint8_t nSections);
