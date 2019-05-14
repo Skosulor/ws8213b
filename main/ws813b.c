@@ -1,7 +1,12 @@
 #include <stdio.h>
+#include <complex.h>
+#include <math.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "ws813b.h"
+#include "esp_timer.h"
+#include "driver/adc.h"
+#include "esp_adc_cal.h"
 
 
 void init(struct mode_config *mode_conf){
@@ -24,30 +29,75 @@ void init(struct mode_config *mode_conf){
 
   leds = malloc(sizeof(led_struct) * mode_conf[0].length);
 
+  initAdc();
+
+}
+
+void initAdc(){
+
+  esp_err_t r;
+  gpio_num_t adc_gpio_num;
+  r = adc2_pad_get_io_num( ADC2_CHANNEL_2, &adc_gpio_num );
+  printf("2\n");
+  assert( r == ESP_OK );
+  adc2_config_channel_atten( ADC2_CHANNEL_2, ADC_ATTEN_11db );
+  vTaskDelay(2 * portTICK_PERIOD_MS);
+
 }
 
 void ledEngine(struct mode_config  *mode_conf){
-  static uint16_t  fade_walk_t    = 0;
-  static uint16_t  fade_t         = 0;
-  static uint16_t  walk_t         = 0;
-  static uint16_t  config_t       = 0;
-  static uint16_t  debug_t        = 0;
-  const TickType_t freq           = UPDATE_FREQ_MS;
-  TickType_t       LastWakeTime;
-  int              i;
-  static uint8_t   cc;          // Current config
-  static uint8_t   pc;          // previous config
-  static uint8_t   nc;          // Number of configs
+  welcome();
+  const  TickType_t freq = UPDATE_FREQ_MS;
+  static TickType_t LastWakeTime;
+  static TickType_t config_tick;
   static TickType_t fade_tick;
   static TickType_t walk_tick;
-  static TickType_t config_tick;
+  static TickType_t debug_tick;
+  static TickType_t music_tick;
+
+  static uint16_t   fade_walk_t = 0;
+  static bool       ledsUpdated;
+
+  static uint16_t   i;
+  static uint8_t    cc;         // Current config
+  static uint8_t    pc;         // previous config
+  static uint8_t    nc;         // Number of configs
+
+  static uint16_t walk_rate_ms   = 1000;
+  static uint16_t fade_rate_ms   = 1000;
+  static uint16_t config_rate_ms = 1000;
+  static uint16_t debug_rate_ms  = 1000;
+  static uint16_t music_rate_ms  = 1;
+
+  float complex samples[Ns];
+  float complex copy[Ns];
+  float freqAmps[nFreqs];
+
+  if(mode_conf[0].walk)
+   walk_rate_ms   = 1000/(((float)(mode_conf[0].walk_rate)));
+  if(mode_conf[0].fade)
+   fade_rate_ms   = 1000/(((float)(mode_conf[0].fadeRate)));
+  if(mode_conf[0].cycleConfig)
+   config_rate_ms = 1000/(((float)(mode_conf[0].configRate)));
+  if(mode_conf[0].debugRate > 0)
+   debug_rate_ms  = 1000/(((float)(mode_conf[0].debugRate)));
+
+  DPRINT(("----------------------  \n Initial rates in mS\n---------------------- \n "));
+  DPRINT(("walk_rate_ms %d\n" , walk_rate_ms));
+  DPRINT(("fade_rate_ms %d\n" , fade_rate_ms));
+  DPRINT(("config_rate_ms %d\n" , config_rate_ms));
+  DPRINT(("debug_rate_ms %d\n" , debug_rate_ms));
+  DPRINT(("----------------------  \n Initial rates in mS \n---------------------- \n\n "));
+
+  int64_t bt = 0;
+  int64_t et = 0;
 
   // TODO use tickcount to determine execution of mode 
 
   cc = nc;
   pc = nc;
   nc = mode_conf[0].nOfConfigs;
-  debug_t = mode_conf[0].debugRate + 1;
+  debug_tick = mode_conf[0].debugRate + 1;
 
 
     for(i = 0; i < mode_conf[cc].smooth; i++){
@@ -63,9 +113,11 @@ void ledEngine(struct mode_config  *mode_conf){
   setLeds(mode_conf[cc]);
   outputLeds(mode_conf[cc]);
 
-  walk_tick = xTaskGetTickCount;
-  fade_tick = walk_tick;
+  walk_tick   = xTaskGetTickCount();
+  fade_tick   = walk_tick;
   config_tick = walk_tick;
+  music_tick  = walk_tick;
+
   while(1){
     LastWakeTime = xTaskGetTickCount();
 
@@ -78,14 +130,22 @@ void ledEngine(struct mode_config  *mode_conf){
     /*   walk_tick = LastWakeTime; */
     /* } */
 
-    if(debug_t > mode_conf[0].debugRate){
-      debug_t = 0;
-      DPRINT((" current conf: %d\n walk: %d\n fade: %d\n smooth: %d\n config_t %d\n\n",
-              cc, mode_conf[cc].walk, mode_conf[cc].fade, mode_conf[cc].smooth, config_t));
+    if(LastWakeTime - debug_tick > debug_rate_ms){
+      debug_tick = LastWakeTime;
+      DPRINT(("----------------------- Debug info ----------------------- \n"));
+      DPRINT(("current conf: %d\nwalk:         %d\nfade:         %d\nsmooth:       %d\nconfig_tick:  %d\n",
+              cc, mode_conf[cc].walk, mode_conf[cc].fade, mode_conf[cc].smooth, config_tick));
+      DPRINT(("----------------------------------------------------------- \n\n "));
 
-      FADE_DEBUG(("----------------------  \n Fade info\n---------------------- \n "));
+
+      DPRINT(("----------------------  Timing info ---------------------- \n"));
+      DPRINT(("Time taken to output leds: %f mS\n", ((float)(et-bt))/1000));
+      DPRINT(("---------------------------------------------------------- \n\n"));
+
+      FADE_DEBUG(("---------------------- Fade ---------------------- \n"));
       FADE_DEBUG(("Current conf: %d\n Fade: %d\n fadeRate: %d\n ", cc, mode_conf[cc].fade, mode_conf[cc].fadeRate));
       FADE_DEBUG(("fadeIteration: %d\n FadeDir: %d\n ", mode_conf[cc].fadeIteration, mode_conf[cc].fadeDir));
+      FADE_DEBUG(("---------------------- Fade ---------------------- \n"));
 
       /* DPRINT((" DebugRate: %d\n nc: %d\n mode_conf[cc].nOfConfigs: %d\n\n", */
               /* mode_conf[cc].debugRate, nc, mode_conf[cc].nOfConfigs)); */
@@ -95,40 +155,55 @@ void ledEngine(struct mode_config  *mode_conf){
     /* Config Update */
     /* --------------*/
 
-    if((LastWakeTime - config_tick) > mode_conf[cc].configRate && mode_conf[cc].cycleConfig){
+    if((LastWakeTime - config_tick) > config_rate_ms && mode_conf[cc].cycleConfig){
       config_tick = LastWakeTime;
       pc = cc;
       cc = ((cc + 1) % nc);
 
       mode_conf[cc].fadeDir = mode_conf[pc].fadeDir;
+
+
+      if(mode_conf[cc].walk)
+        walk_rate_ms   = 1/(((float)(mode_conf[cc].walk_rate))/1000);
+      if(mode_conf[cc].fade)
+        fade_rate_ms   = 1/(((float)(mode_conf[cc].fadeRate))/1000);
+      if(mode_conf[cc].cycleConfig)
+        config_rate_ms = 1/(((float)(mode_conf[cc].configRate))/1000);
+      if(mode_conf[cc].debugRate > 0)
+        debug_rate_ms  = 1/(((float)(mode_conf[cc].debugRate))/1000);
     }
 
     /* --------- */
     /* fade mode */
     /* ----------*/
 
-    if((LastWakeTime - fade_tick) >= mode_conf[cc].fadeRate && mode_conf[cc].fade){
+    if((LastWakeTime - fade_tick) >= fade_rate_ms && mode_conf[cc].fade){
       fade_tick = LastWakeTime;
 
       if(mode_conf[cc].fadeDir == 0){
-          fadeTo(&mode_conf[cc]);
+        bt = esp_timer_get_time();
+        fadeTo(&mode_conf[cc]);
+        et = esp_timer_get_time();
+        /* printf("FaderTo time: %lld\n", (et-bt)); */
       }
       else{
-          fadeZero(&mode_conf[cc]);
+        fadeZero(&mode_conf[cc]);
       }
       setLeds(mode_conf[cc]);
-      outputLeds(mode_conf[cc]);
+      ledsUpdated = true;
+      /* outputLeds(mode_conf[cc]); */
     }
 
     /* --------- */
     /* walk mode */
     /* ----------*/
 
-    if((LastWakeTime - walk_tick) >= mode_conf[cc].walk_rate && mode_conf[cc].walk){
+    if((LastWakeTime - walk_tick) >= walk_rate_ms && mode_conf[cc].walk){
       walk_tick = LastWakeTime;
 
       stepForward(&mode_conf[cc]);
-      outputLeds(mode_conf[cc]);
+      ledsUpdated = true;
+      /* outputLeds(mode_conf[cc]); */
     }
 
     /* -------------- */
@@ -141,17 +216,131 @@ void ledEngine(struct mode_config  *mode_conf){
       setLeds(mode_conf[cc]);
       outputLeds(mode_conf[cc]);
     }
+    /* --------- */
+    /*    FFT    */
+    /* ----------*/
+
+    if((LastWakeTime - music_tick) >= 300){
+      music_tick = LastWakeTime;
+      startAdc(samples, copy);
+      fft(samples, copy, Ns, 1, 0);
+      fbinToFreq(samples, freqAmps);
+    }
 
     /* ----------- */
     /* time Update */
     /* ------------*/
 
-    fade_t      += 1;
-    walk_t      += 1;
-    config_t    += 1;
-    debug_t     += 1;
-    fade_walk_t += 1;
+    if(ledsUpdated == true){
+      ledsUpdated = false;
+
+      bt = esp_timer_get_time();
+      outputLeds(mode_conf[cc]);
+      et = esp_timer_get_time();
+    }
     vTaskDelayUntil( &LastWakeTime, freq);
+  }
+}
+
+void fft(float complex x[], float complex y[], int N, int step, int offset){
+
+  // Make sure N = 2^x
+  int k, i;
+  float complex t;
+
+  if(step < N){
+    fft(y, x, N, step*2, offset);          // ftt even
+    fft(y, x, N, step*2, (offset + step)); // ftt odd
+    i = 0;
+
+    for(k = offset; k < N/2; k += step){
+      int even = step*2*i + offset;
+      int odd  = step + offset + 2*i*step;
+
+      t = cexp(-2*I*M_PI*i/(N/step)) * y[odd];
+      x[k]        = y[even] + t; 
+      x[k + N/2]  = y[even] - t;
+      i++;
+    }
+  }
+}
+
+void fbinToFreq(float complex *in, float *out){
+  const static int freqs[nFreqs]        = {100, 250, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000};
+  const static int freqSpacing[nFreqs] = {175, 375, 750, 1250, 1750, 2250, 2750, 3250, 3750, 4250, 4750, 5000};
+
+  float power[Ns];
+  int freqCount, i;
+
+  for(i = 0; i < Ns; i++){
+    power[i] = cabs(in[i]);
+  }
+
+  freqCount = 0;
+  for(i = 2; i < Ns; i++){
+
+   out[freqCount] += power[i];
+    if(freqSpacing[freqCount] < i*(float)sampleRate/Ns)
+      freqCount += 1;
+    if(freqCount >= nFreqs)
+      break;
+  }
+
+  // Remove when working correctly
+  for(i = 0; i < nFreqs; i ++){
+    printf("Freq: %4d, power: %.10f\n", abs(freqs[i]), out[i]);
+  }
+  printf("\n");
+
+  for(i = 0; i < freqCount; i++){
+    out[i] = 0;
+  }
+
+}
+
+void startAdc(float complex *out, float complex *copy){
+
+  // TODO remove wait of 100 uS before getting first sample
+  int i;
+  int read_raw;
+  float voltage;
+  esp_err_t r;
+  int64_t currTime;
+  int64_t lastTime;
+
+  i = 0;
+  lastTime = esp_timer_get_time();
+
+  while(i < Ns){
+    currTime = esp_timer_get_time();
+
+    if(currTime - lastTime >= 100){
+      lastTime = esp_timer_get_time();
+      r = adc2_get_raw( ADC2_CHANNEL_2,  ADC_WIDTH_12Bit, &read_raw);
+
+      if ( r == ESP_OK ) {
+        /* voltage = 3.3/4098 * read_raw - 1.633; */
+        voltage = (read_raw - 2048) * 3.3/4098;
+        out[i] = voltage;
+        copy[i] = voltage;
+        i += 1;
+      }
+      else
+        errControl(r);
+    }
+  }
+}
+
+void errControl(esp_err_t r){
+
+  if ( r == ESP_ERR_INVALID_STATE ) {
+    printf("%s: ADC2 not initialized yet.\n", esp_err_to_name(r));
+  }
+  else if ( r == ESP_ERR_TIMEOUT ) {
+    printf("%s: ADC2 is in use by Wi-Fi.\n", esp_err_to_name(r));
+  }
+  else {
+    printf("%s\n", esp_err_to_name(r));
   }
 }
 
@@ -189,7 +378,7 @@ void repeatModeZero(struct mode_config *conf){
     conf[i] = conf[0];
 }
 
-void initColors(struct mode_config  *mode_conf, struct section_colors_t *color){
+void initColors(struct mode_config  *mode_conf, const struct section_colors_t *color){
   int i;
   for(i = 0; i < mode_conf->section_length; i ++){
     mode_conf->section_colors[i] = color[i];
@@ -207,53 +396,14 @@ void fadeWalk( struct mode_config  conf){
   }
 }
 
-void setSectionFadeColors(struct mode_config  conf){
-  int i,j;
-  int offset;
-
-  for(i = 0; i < conf.section_length; i ++){
-    for(j = i*(conf.length/conf.section_length); j <  (i+1)*(conf.length/conf.section_length); j ++){
-
-      if(j + conf.section_offset < 0)
-        offset = (conf.length + j + conf.section_offset) % conf.length;
-      else
-        offset = (j + conf.section_offset) % conf.length;
-
-      /* printf("offset: %d, s offset: %d, j: %d\n", offset, conf.section_offset, j); */
-      leds[offset].fadeR = conf.section_colors[i].red;
-      leds[offset].fadeG = conf.section_colors[i].green;
-      leds[offset].fadeB = conf.section_colors[i].blue;
-    }
-  }
-
-}
-
-void setFadeColorsSection(struct mode_config  conf){
-  int i,j;
-  int offset;
-  for(i = 0; i < conf.section_length; i ++){
-    for(j = i*(conf.length/conf.section_length); j <  (i+1)*(conf.length/conf.section_length); j ++){
-
-      if(j + conf.section_offset < 0)
-        offset = (conf.length + j + conf.section_offset) % conf.length;
-      else
-        offset = (j + conf.section_offset) % conf.length;
-
-      /* printf("offset: %d, s offset: %d, j: %d\n", offset, conf.section_offset, j); */
-      conf.section_colors[offset].red = leds[i].fadeR;
-      conf.section_colors[offset].green = leds[i].fadeG;
-      conf.section_colors[offset].blue = leds[i].fadeB;
-    }
-  }
-}
 void fadeZero(struct mode_config *conf){
   int i;
   static uint8_t it = 0;
   for(i = 0; i < conf->length; i++){
     // TODO define a variable for 128
-    leds[i].r = leds[i].r - ((leds[i].r - 0)/(128 - it));
-    leds[i].g = leds[i].g - ((leds[i].g - 0)/(128 - it));
-    leds[i].b = leds[i].b - ((leds[i].b - 0)/(128 - it));
+    leds[i].r = leds[i].r - ((leds[i].r - 0)/(64 - it));
+    leds[i].g = leds[i].g - ((leds[i].g - 0)/(64 - it));
+    leds[i].b = leds[i].b - ((leds[i].b - 0)/(64 - it));
   }
   it++;
   if(it == conf->fadeIteration){
@@ -268,9 +418,9 @@ void fadeTo(struct mode_config *conf){
 
   for(i = 0; i < conf->length; i++){
     // TODO define a variable for 128
-    leds[i].r = leds[i].r - ((leds[i].r - leds[i].fadeR)/(128 - it));
-    leds[i].g = leds[i].g - ((leds[i].g - leds[i].fadeG)/(128 - it));
-    leds[i].b = leds[i].b - ((leds[i].b - leds[i].fadeB)/(128 - it));
+    leds[i].r = leds[i].r - ((leds[i].r - leds[i].fadeR)/(64 - it));
+    leds[i].g = leds[i].g - ((leds[i].g - leds[i].fadeG)/(64 - it));
+    leds[i].b = leds[i].b - ((leds[i].b - leds[i].fadeB)/(64 - it));
   }
 
   it++;
@@ -296,7 +446,7 @@ void setSectionColors(struct mode_config  conf){
 
 void outputLeds(struct mode_config  mode_conf){
   int i;
-  ESP_ERROR_CHECK(rmt_write_items(rmt_conf.channel, leds[0].item, 24, 1));
+  /* ESP_ERROR_CHECK(rmt_write_items(rmt_conf.channel, leds[0].item, 24, 1)); */
   for(i = 0; i < mode_conf.length; i ++){
     ESP_ERROR_CHECK(rmt_write_items(rmt_conf.channel, leds[i].item, 24, 1));
     /* printf("i: %d, R: %d\n", i, leds[i].r); */
@@ -378,6 +528,32 @@ void stepFade(struct led_struct *led, struct mode_config  conf,
 
 }
 
-void pulse(struct mode_config  conf){
-}
+void pulse(struct mode_config  conf){}
 
+void welcome(){
+
+
+  printf(" __            _    ____        _                \n");
+  printf("|  |    ___  _| |  |    \\  ___ |_| _ _  ___  ___ \n");
+  printf("|  |__ | -_|| . |  |  |  ||  _|| || | || -_||  _|\n");
+  printf("|_____||___||___|  |____/ |_|  |_| \\_/ |___||_|  \n");
+  printf("                                                 \n");
+  printf("                                                 \n");
+  printf("                   _                             \n");
+  printf("                  | |_  _ _                      \n");
+  printf("                  | . || | |                     \n");
+  printf("                  |___||_  |                     \n");
+  printf("                       |___|                     \n");
+  printf("                                                 \n");
+  printf("      _____         _                                 \n");
+  printf("     |  _  | ___  _| | ___  ___  ___  ___             \n");
+  printf("     |     ||   || . ||  _|| -_|| .'||_ -|            \n");
+  printf("     |__|__||_|_||___||_|  |___||__,||___|            \n");
+  printf("                                                 \n");
+  printf("          __ __                                           \n");
+  printf("         |__|__| _                                        \n");
+  printf("         |     || |_  _____  ___  ___                     \n");
+  printf("         |  |  ||   ||     || .'||   |                    \n");
+  printf("         |_____||_|_||_|_|_||__,||_|_|  \n");
+
+}

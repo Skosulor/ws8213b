@@ -1,31 +1,48 @@
 #ifndef WS813B_H_
 #define WS813B_H_
 #include "driver/rmt.h"
+#include <complex.h>
+
+// Engine
 #define UPDATE_FREQ 1000
 #define UPDATE_FREQ_MS ((1000/UPDATE_FREQ))
 
-/* #define DEBUG */
-/* #define WALK_DEBUG */
-#define FADE_DEBUG
+// fft
+#define sampleRate 10000
+#define nFreqs     12
+#define Ns         256
 
-#ifdef WALK_DEBUG
+// Bool values
+#define true    1
+#define false   0
+
+// Debug
+#define DEBUG   0
+#define W_DEBUG 0
+#define F_DEBUG 0
+
+#if W_DEBUG > 0
 # define WALK_DEBUG(x) printf x
 #else
 # define WALK_DEBUG(x) do {} while (0)
 #endif
 
-#ifdef FADE_DEBUG
+#if F_DEBUG > 0
 # define FADE_DEBUG(x) printf x
 #else
 # define FADE_DEBUG(x) do {} while (0)
 #endif
 
 
-#ifdef DEBUG
+#if DEBUG > 0
 # define DPRINT(x) printf x
 #else
 # define DPRINT(x) do {} while (0)
 #endif
+
+/* typedef uint8_t bool; */
+
+
 
 struct led_struct
 {
@@ -36,12 +53,12 @@ struct led_struct
   uint8_t fadeR;
   uint8_t fadeG;
   uint8_t fadeB;
-  uint8_t dir;
+  bool dir;
 
 } led_struct;
 
 
-
+// TODO rename to colors_t
 struct section_colors_t
 {
   uint8_t red;
@@ -51,23 +68,23 @@ struct section_colors_t
 
 struct mode_config
 {
+  bool step;
+  bool fade;
+  bool pulse;
+  bool walk;
   uint32_t length;
   uint32_t configRate;
   uint16_t walk_rate;
   uint16_t debugRate;
   int16_t section_offset;
-  uint8_t step;
-  uint8_t fade;
   uint8_t fadeRate;
   uint8_t fadeIteration; // TODO rename this to something more relevant
   uint8_t fadeDir;
   uint8_t fadeWalk;
   uint8_t fadeWalkRate;
   uint8_t fadeWalkFreq;
-  uint8_t pulse;
   uint8_t pulseRate;
   uint8_t section_length;
-  uint8_t walk;
   uint8_t smooth;
   uint8_t cycleConfig;
   uint8_t nOfConfigs;
@@ -112,7 +129,7 @@ struct led_struct *leds;
 void init();
 void stepFade(struct led_struct *led, struct mode_config  conf,
               uint8_t rTarget, uint8_t bTarget, uint8_t gTarget);
-void initColors(struct mode_config *mode_conf, struct section_colors_t* color);
+void initColors(struct mode_config *mode_conf, const struct section_colors_t* color);
 void ledEngine(struct mode_config  *mode_conf);
 void outputLeds(struct mode_config  mode_conf);
 void setLed(rmt_item32_t *item, uint8_t red, uint8_t blue, uint8_t green);
@@ -126,14 +143,16 @@ void setLeds(struct mode_config  conf);
 void pulse(struct mode_config  conf);
 void setSectionColors(struct mode_config  conf);
 void fadeWalk(struct mode_config  conf);
-void setSectionFadeColors(struct mode_config  conf);
-void setFadeColorsSection(struct mode_config  conf);
 void fadeTo(struct mode_config* conf);
 void fadeZero(struct mode_config *conf);
 void resetModeConfigs(struct mode_config* conf, uint8_t nConfigs, uint16_t nleds, uint8_t nSections);
 void repeatModeZero(struct mode_config *conf);
-
-
+void welcome();
+void initAdc();
+void fft(float complex x[], float complex y[], int N, int step, int offset);
+void errControl(esp_err_t r);
+void startAdc(float complex *out , float complex *copy);
+void fbinToFreq(float complex *in , float *out);
 
 
 
