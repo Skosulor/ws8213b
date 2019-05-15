@@ -5,80 +5,108 @@
 /* feel free to add more and */
 /* make a pull request */
 
-static const struct section_colors_t red = {
+
+static const struct section_colors_t color_red = {
   .red = 0,
   .blue = 255,
   .green = 0,
 };
-static const struct section_colors_t blue = {
+static const struct section_colors_t color_blue = {
   .red = 0,
   .blue = 255,
   .green = 0,
 };
-static const struct section_colors_t green = {
+static const struct section_colors_t color_green = {
   .red = 0,
   .blue = 0,
   .green = 255,
 };
-static const struct section_colors_t white = {
+static const struct section_colors_t color_white = {
   .red = 255,
   .blue = 255,
   .green = 255,
 };
 
-static const struct section_colors_t black = {
+static const struct section_colors_t color_black = {
   .red = 0,
   .blue = 0,
   .green = 0,
 };
 
-static const struct section_colors_t Purple  = {
+static const struct section_colors_t color_Purple  = {
   .red = 255,
   .green = 0,
   .blue = 200,
 };
 
-static const struct section_colors_t Yellow = {
+static const struct section_colors_t color_Yellow = {
   .red = 255,
   .green = 125,
   .blue = 0,
 };
 
-static const struct section_colors_t Green = {
+static const struct section_colors_t color_Green = {
   .red = 0,
   .green = 255,
   .blue = 0,
 };
 
-static const struct section_colors_t light_purple = {
+static const struct section_colors_t color_light_purple = {
   .red = 255,
   .green = 0,
   .blue = 100,
 };
 
-static const struct section_colors_t Orange = {
+static const struct section_colors_t color_Orange = {
   .red = 255,
   .green = 50,
   .blue = 0,
 };
 
-static const struct section_colors_t light_pink = {
+static const struct section_colors_t color_light_pink = {
   .red = 255,
   .green = 40,
   .blue = 40,
 };
 
-static const struct section_colors_t PINK = {
+static const struct section_colors_t color_pink = {
   .red = 255,
   .green = 0,
   .blue = 25,
 };
 
-static const struct section_colors_t cyan = {
+static const struct section_colors_t color_cyan = {
   .red = 200,
   .green = 255,
   .blue = 200
 };
+
+static const struct section_colors_t music_colors[N_FFT_COLORS] = {
+
+
+  {
+    .red = 255,
+    .green = 0,
+    .blue = 0,
+  },
+
+  {
+    .red = 0,
+    .green = 0,
+    .blue = 255,
+  },
+
+  {
+    .red = 0,
+    .green = 255,
+    .blue = 0,
+  },
+
+  {
+    .red = 0,
+    .green = 0,
+    .blue = 0,
+  }};
 
 static const struct section_colors_t testColors[10] = {
 

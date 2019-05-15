@@ -8,9 +8,10 @@
 #define UPDATE_FREQ_MS ((1000/UPDATE_FREQ))
 
 // fft
-#define sampleRate 10000
-#define nFreqs     12
-#define Ns         256
+#define N_FFT_COLORS 4
+#define sampleRate   10000
+#define nFreqs       12
+#define Ns           256
 
 // Bool values
 #define true    1
@@ -153,6 +154,8 @@ void fft(float complex x[], float complex y[], int N, int step, int offset);
 void errControl(esp_err_t r);
 void startAdc(float complex *out , float complex *copy);
 void fbinToFreq(float complex *in , float *out);
+void freqToLed(float *power, struct mode_config conf);
+
 
 
 

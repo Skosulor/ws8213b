@@ -7,7 +7,7 @@
 #include "esp_timer.h"
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
-
+#include "colors.h"
 
 void init(struct mode_config *mode_conf){
 
@@ -220,11 +220,20 @@ void ledEngine(struct mode_config  *mode_conf){
     /*    FFT    */
     /* ----------*/
 
-    if((LastWakeTime - music_tick) >= 300){
+    if((LastWakeTime - music_tick) >= 150){
       music_tick = LastWakeTime;
       startAdc(samples, copy);
       fft(samples, copy, Ns, 1, 0);
       fbinToFreq(samples, freqAmps);
+      freqToLed(freqAmps, mode_conf[cc]);
+
+      for(i = 0; i < mode_conf[cc].smooth; i++){
+        fadeWalk(mode_conf[cc]);
+      }
+
+      setLeds(mode_conf[cc]);
+      ledsUpdated = true;
+
     }
 
     /* ----------- */
@@ -242,6 +251,96 @@ void ledEngine(struct mode_config  *mode_conf){
   }
 }
 
+void freqToLed(float *power, struct mode_config conf){
+  uint8_t freqColor[nFreqs];
+  uint8_t i,j;
+  uint16_t max = 0;
+  static int avgCount = 0;
+  float avgAmp[10];
+  float brightness[nFreqs];
+  float avg, avgOfArrayAvg;
+  float lowAmp, highAmp, maxAmp;
+  // TODO define instead of variable
+  uint8_t avgOffset = 7;
+  const float minAmp = 1.5;
+
+  avg = 0;
+
+  // TODO move or use another way to "normalize" low freq
+  power[0] -= 0.8;
+  for(i = 0; i < nFreqs - 5; i++){
+    avg += power[i];
+    if(power[i] > max)
+      max = power[i];
+  }
+
+  avg = avg / (nFreqs - 5);
+  avgAmp[avgCount] = avg;
+  avgCount = (avgCount + 1) % 10;
+
+  avgOfArrayAvg = 0;
+  for(i = 0; i < 10; i++){
+    avgOfArrayAvg += avgAmp[i];
+  }
+
+  avgOfArrayAvg = avgOfArrayAvg / 10 + avgOffset;
+  lowAmp = avgOfArrayAvg * 0.66;
+  highAmp = avgOfArrayAvg * 1.33;
+  maxAmp = highAmp * 1.33;
+  if(lowAmp < minAmp)
+    lowAmp = minAmp;
+
+
+  for(i = 0; i < nFreqs - 5; i++){
+    if(power[i] <= minAmp){
+      freqColor[i] = 3;
+      brightness[i] = 0;
+    }
+    else if(power[i] <= lowAmp){
+      freqColor[i] = 2;
+      brightness[i] = power[i]/lowAmp;
+      /* printf("lowamp: %.2f, power[i]: %.2f\n", lowAmp, power[i]); */
+    }
+    else if(power[i] <= highAmp){
+      freqColor[i] = 1;
+      brightness[i] = power[i]/highAmp;
+    }
+    else if(power[i] > highAmp){
+      freqColor[i] = 0;
+      brightness[i] = power[i]/maxAmp;
+    }
+
+    if(brightness[i] < 0.3)
+      brightness[i] = 0.3;
+    if(brightness[i] > 1)
+      brightness[i] = 1;
+
+    power[i] = 0;
+
+    /* printf("i: %d, freqColor %d, brightness: %.2f\n", i, freqColor[i], brightness[i]); */
+  }
+
+  /* printf("\n"); */
+  /* printf("lowamp: %.2f, highAmp: %.2f, MaxAmp: %.2f, avg: %.2f\n", */
+  /*        lowAmp, highAmp, maxAmp, avgOfArrayAvg); */
+
+  for(i = 0; i < nFreqs - 5; i ++){
+    for(j = i*(conf.length/(nFreqs - 5)); j <  (i+1)*(conf.length/(nFreqs - 5)); j ++){
+      leds[j].r = (int)((float)music_colors[freqColor[i]].red   * brightness[i]);
+      leds[j].g = (int)((float)music_colors[freqColor[i]].green * brightness[i]);
+      leds[j].b = (int)((float)music_colors[freqColor[i]].blue  * brightness[i]);
+    }
+
+  }
+
+  // TODO create array of struct colors with size N_FFT_COLORS
+  //      lower number -> higher amplitude
+
+  // TODO Set led colors after amplitude and array
+
+  // TODO remember to remove print and move zeroing of power
+
+}
 void fft(float complex x[], float complex y[], int N, int step, int offset){
 
   // Make sure N = 2^x
@@ -277,8 +376,8 @@ void fbinToFreq(float complex *in, float *out){
   }
 
   freqCount = 0;
-  for(i = 2; i < Ns; i++){
 
+  for(i = 2; i < Ns; i++){
    out[freqCount] += power[i];
     if(freqSpacing[freqCount] < i*(float)sampleRate/Ns)
       freqCount += 1;
@@ -287,14 +386,15 @@ void fbinToFreq(float complex *in, float *out){
   }
 
   // Remove when working correctly
-  for(i = 0; i < nFreqs; i ++){
-    printf("Freq: %4d, power: %.10f\n", abs(freqs[i]), out[i]);
-  }
-  printf("\n");
 
-  for(i = 0; i < freqCount; i++){
-    out[i] = 0;
-  }
+  /* for(i = 0; i < nFreqs; i ++){ */
+  /*   printf("Freq: %4d, power: %.10f\n", abs(freqs[i]), out[i]); */
+  /* } */
+  /* printf("\n"); */
+
+  /* for(i = 0; i < freqCount; i++){ */
+  /*   out[i] = 0; */
+  /* } */
 
 }
 

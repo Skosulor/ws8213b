@@ -5,7 +5,7 @@
 #include "colors.h"
 
 #define N_CONF     5
-#define N_LEDS     120
+#define N_LEDS     60
 #define N_SECTIONS 10
 
 
@@ -22,7 +22,7 @@ void app_main(){
   conf[0].cycleConfig = false;
 
   // TODO handle fade in cycleConfig
-  conf[0].smooth        = 30;
+  conf[0].smooth        = 15;
   conf[0].walk_rate     = 30;
   conf[0].debugRate     = 1;
   conf[0].configRate    = 1;  // Cannot be frequency if int
