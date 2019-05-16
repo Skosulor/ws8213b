@@ -8,10 +8,12 @@
 #define UPDATE_FREQ_MS ((1000/UPDATE_FREQ))
 
 // fft
+#define SAMPLE_RATE  10000
+#define N_SAMPLES    256
+#define N_FREQS      12         // n of frequency "summations" to visualize. max 12 100-5k Hz
+#define AVG_OFFSET   7
 #define N_FFT_COLORS 4
-#define sampleRate   10000
-#define nFreqs       12
-#define Ns           256
+#define MIN_AMP      1.5        // TODO This should be a multiplier not the actual value
 
 // Bool values
 #define true    1
@@ -29,7 +31,7 @@
 #endif
 
 #if F_DEBUG > 0
-# define FADE_DEBUG(x) printf x
+# define fade_debug(x) printf x
 #else
 # define FADE_DEBUG(x) do {} while (0)
 #endif
@@ -151,10 +153,12 @@ void repeatModeZero(struct mode_config *conf);
 void welcome();
 void initAdc();
 void fft(float complex x[], float complex y[], int N, int step, int offset);
-void errControl(esp_err_t r);
+void adcErrCtrl(esp_err_t r);
 void startAdc(float complex *out , float complex *copy);
 void fbinToFreq(float complex *in , float *out);
-void freqToLed(float *power, struct mode_config conf);
+void scaleAmpRelative(float *power, struct mode_config conf, uint8_t *relativeAmplitude, float *brightness);
+void music_mode1(uint8_t *relativeAmplitude, float *brightness, struct mode_config conf);
+
 
 
 

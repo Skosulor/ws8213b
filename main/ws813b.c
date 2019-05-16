@@ -29,6 +29,7 @@ void init(struct mode_config *mode_conf){
 
   leds = malloc(sizeof(led_struct) * mode_conf[0].length);
 
+  // TODO add if music mode enabled, move to ledEngine
   initAdc();
 
 }
@@ -47,6 +48,8 @@ void initAdc(){
 
 void ledEngine(struct mode_config  *mode_conf){
   welcome();
+
+  // n of freertos ticks for each mode
   const  TickType_t freq = UPDATE_FREQ_MS;
   static TickType_t LastWakeTime;
   static TickType_t config_tick;
@@ -58,20 +61,25 @@ void ledEngine(struct mode_config  *mode_conf){
   static uint16_t   fade_walk_t = 0;
   static bool       ledsUpdated;
 
+  // config
   static uint16_t   i;
   static uint8_t    cc;         // Current config
   static uint8_t    pc;         // previous config
   static uint8_t    nc;         // Number of configs
 
+  // Period of modes in milliseconds
   static uint16_t walk_rate_ms   = 1000;
   static uint16_t fade_rate_ms   = 1000;
   static uint16_t config_rate_ms = 1000;
   static uint16_t debug_rate_ms  = 1000;
   static uint16_t music_rate_ms  = 1;
 
-  float complex samples[Ns];
-  float complex copy[Ns];
-  float freqAmps[nFreqs];
+  // Music mode
+  float musicBrightness[N_FREQS];
+  uint8_t musicRelativeAmplitude[N_FREQS];
+  float complex samples[N_SAMPLES];
+  float complex copy[N_SAMPLES];
+  float freqAmps[N_FREQS];
 
   if(mode_conf[0].walk)
    walk_rate_ms   = 1000/(((float)(mode_conf[0].walk_rate)));
@@ -220,12 +228,15 @@ void ledEngine(struct mode_config  *mode_conf){
     /*    FFT    */
     /* ----------*/
 
+    // TODO change 150 an variable, add enable var in config
     if((LastWakeTime - music_tick) >= 150){
       music_tick = LastWakeTime;
+
       startAdc(samples, copy);
-      fft(samples, copy, Ns, 1, 0);
+      fft(samples, copy, N_SAMPLES, 1, 0);
       fbinToFreq(samples, freqAmps);
-      freqToLed(freqAmps, mode_conf[cc]);
+      scaleAmpRelative(freqAmps, mode_conf[cc], musicRelativeAmplitude, musicBrightness);
+      music_mode1(musicRelativeAmplitude, musicBrightness, mode_conf[cc]);
 
       for(i = 0; i < mode_conf[cc].smooth; i++){
         fadeWalk(mode_conf[cc]);
@@ -251,30 +262,30 @@ void ledEngine(struct mode_config  *mode_conf){
   }
 }
 
-void freqToLed(float *power, struct mode_config conf){
-  uint8_t freqColor[nFreqs];
-  uint8_t i,j;
+void scaleAmpRelative(float *power, struct mode_config conf, uint8_t *relativeAmplitude, float *brightness){
+
+  // TODO scale rangers from 3 to 10 or higher for better representation of freq.
+
+  /* uint8_t relativeAmplitude[N_FREQS]; */
+  uint8_t i;
   uint16_t max = 0;
-  static int avgCount = 0;
+  static uint8_t avgCount = 0;
   float avgAmp[10];
-  float brightness[nFreqs];
+  /* float brightness[N_FREQS]; */
   float avg, avgOfArrayAvg;
   float lowAmp, highAmp, maxAmp;
-  // TODO define instead of variable
-  uint8_t avgOffset = 7;
-  const float minAmp = 1.5;
 
   avg = 0;
 
   // TODO move or use another way to "normalize" low freq
   power[0] -= 0.8;
-  for(i = 0; i < nFreqs - 5; i++){
+  for(i = 0; i < N_FREQS; i++){
     avg += power[i];
     if(power[i] > max)
       max = power[i];
   }
 
-  avg = avg / (nFreqs - 5);
+  avg = avg / (N_FREQS);
   avgAmp[avgCount] = avg;
   avgCount = (avgCount + 1) % 10;
 
@@ -283,30 +294,32 @@ void freqToLed(float *power, struct mode_config conf){
     avgOfArrayAvg += avgAmp[i];
   }
 
-  avgOfArrayAvg = avgOfArrayAvg / 10 + avgOffset;
+  avgOfArrayAvg = avgOfArrayAvg / 10 + AVG_OFFSET;
   lowAmp = avgOfArrayAvg * 0.66;
   highAmp = avgOfArrayAvg * 1.33;
   maxAmp = highAmp * 1.33;
-  if(lowAmp < minAmp)
-    lowAmp = minAmp;
+  if(lowAmp < MIN_AMP)
+    lowAmp = MIN_AMP;
 
 
-  for(i = 0; i < nFreqs - 5; i++){
-    if(power[i] <= minAmp){
-      freqColor[i] = 3;
+  // TODO dont use a billion else-ifs
+
+  for(i = 0; i < N_FREQS; i++){
+    if(power[i] <= MIN_AMP){
+      relativeAmplitude[i] = 3;
       brightness[i] = 0;
     }
     else if(power[i] <= lowAmp){
-      freqColor[i] = 2;
+      relativeAmplitude[i] = 2;
       brightness[i] = power[i]/lowAmp;
       /* printf("lowamp: %.2f, power[i]: %.2f\n", lowAmp, power[i]); */
     }
     else if(power[i] <= highAmp){
-      freqColor[i] = 1;
+      relativeAmplitude[i] = 1;
       brightness[i] = power[i]/highAmp;
     }
     else if(power[i] > highAmp){
-      freqColor[i] = 0;
+      relativeAmplitude[i] = 0;
       brightness[i] = power[i]/maxAmp;
     }
 
@@ -317,30 +330,28 @@ void freqToLed(float *power, struct mode_config conf){
 
     power[i] = 0;
 
-    /* printf("i: %d, freqColor %d, brightness: %.2f\n", i, freqColor[i], brightness[i]); */
+    /* printf("i: %d, relativeAmplitude %d, brightness: %.2f\n", i, relativeAmplitude[i], brightness[i]); */
   }
 
   /* printf("\n"); */
   /* printf("lowamp: %.2f, highAmp: %.2f, MaxAmp: %.2f, avg: %.2f\n", */
   /*        lowAmp, highAmp, maxAmp, avgOfArrayAvg); */
 
-  for(i = 0; i < nFreqs - 5; i ++){
-    for(j = i*(conf.length/(nFreqs - 5)); j <  (i+1)*(conf.length/(nFreqs - 5)); j ++){
-      leds[j].r = (int)((float)music_colors[freqColor[i]].red   * brightness[i]);
-      leds[j].g = (int)((float)music_colors[freqColor[i]].green * brightness[i]);
-      leds[j].b = (int)((float)music_colors[freqColor[i]].blue  * brightness[i]);
+}
+
+void music_mode1(uint8_t *relativeAmplitude, float *brightness, struct mode_config conf){
+  int i,j;
+
+  for(i = 0; i < N_FREQS; i ++){
+    for(j = i*(conf.length/(N_FREQS)); j <  (i+1)*(conf.length/(N_FREQS)); j ++){
+      leds[j].r = (int)((float)music_colors[relativeAmplitude[i]].red   * brightness[i]);
+      leds[j].g = (int)((float)music_colors[relativeAmplitude[i]].green * brightness[i]);
+      leds[j].b = (int)((float)music_colors[relativeAmplitude[i]].blue  * brightness[i]);
     }
 
   }
-
-  // TODO create array of struct colors with size N_FFT_COLORS
-  //      lower number -> higher amplitude
-
-  // TODO Set led colors after amplitude and array
-
-  // TODO remember to remove print and move zeroing of power
-
 }
+
 void fft(float complex x[], float complex y[], int N, int step, int offset){
 
   // Make sure N = 2^x
@@ -365,29 +376,27 @@ void fft(float complex x[], float complex y[], int N, int step, int offset){
 }
 
 void fbinToFreq(float complex *in, float *out){
-  const static int freqs[nFreqs]        = {100, 250, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000};
-  const static int freqSpacing[nFreqs] = {175, 375, 750, 1250, 1750, 2250, 2750, 3250, 3750, 4250, 4750, 5000};
+  /* const static int freqs[N_FREQS]        = {100, 250, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000}; */
+  // TODO consider only using certain frequencies instead of summing them up in chunks
+  const static int freqSpacing[N_FREQS] = {175, 375, 750, 1250, 1750, 2250, 2750, 3250, 3750, 4250, 4750, 5000};
 
-  float power[Ns];
+  float power[N_SAMPLES];
   int freqCount, i;
 
-  for(i = 0; i < Ns; i++){
+  for(i = 0; i < N_SAMPLES; i++){
     power[i] = cabs(in[i]);
   }
 
   freqCount = 0;
 
-  for(i = 2; i < Ns; i++){
+  for(i = 2; i < N_SAMPLES; i++){
    out[freqCount] += power[i];
-    if(freqSpacing[freqCount] < i*(float)sampleRate/Ns)
+    if(freqSpacing[freqCount] < i*(float)SAMPLE_RATE/N_SAMPLES)
       freqCount += 1;
-    if(freqCount >= nFreqs)
+    if(freqCount >= N_FREQS)
       break;
   }
-
-  // Remove when working correctly
-
-  /* for(i = 0; i < nFreqs; i ++){ */
+  /* for(i = 0; i < N_FREQS; i ++){ */
   /*   printf("Freq: %4d, power: %.10f\n", abs(freqs[i]), out[i]); */
   /* } */
   /* printf("\n"); */
@@ -395,52 +404,51 @@ void fbinToFreq(float complex *in, float *out){
   /* for(i = 0; i < freqCount; i++){ */
   /*   out[i] = 0; */
   /* } */
-
 }
 
-void startAdc(float complex *out, float complex *copy){
+void startAdc(float complex *samplesOut, float complex *copy){
 
   // TODO remove wait of 100 uS before getting first sample
   int i;
-  int read_raw;
+  int amplitude;
   float voltage;
-  esp_err_t r;
+  esp_err_t err;
   int64_t currTime;
   int64_t lastTime;
 
   i = 0;
   lastTime = esp_timer_get_time();
 
-  while(i < Ns){
+  while(i < N_SAMPLES){
     currTime = esp_timer_get_time();
 
     if(currTime - lastTime >= 100){
       lastTime = esp_timer_get_time();
-      r = adc2_get_raw( ADC2_CHANNEL_2,  ADC_WIDTH_12Bit, &read_raw);
+      err = adc2_get_raw( ADC2_CHANNEL_2,  ADC_WIDTH_12Bit, &amplitude);
 
-      if ( r == ESP_OK ) {
-        /* voltage = 3.3/4098 * read_raw - 1.633; */
-        voltage = (read_raw - 2048) * 3.3/4098;
-        out[i] = voltage;
+      if ( err == ESP_OK ) {
+        /* voltage = 3.3/4098 * amplitude - 1.633; */
+        voltage = (amplitude - 2048) * 3.3/4098;
+        samplesOut[i] = voltage;
         copy[i] = voltage;
         i += 1;
       }
       else
-        errControl(r);
+        adcErrCtrl(err);
     }
   }
 }
 
-void errControl(esp_err_t r){
+void adcErrCtrl(esp_err_t err){
 
-  if ( r == ESP_ERR_INVALID_STATE ) {
-    printf("%s: ADC2 not initialized yet.\n", esp_err_to_name(r));
+  if ( err == ESP_ERR_INVALID_STATE ) {
+    printf("%s: ADC2 not initialized yet.\n", esp_err_to_name(err));
   }
-  else if ( r == ESP_ERR_TIMEOUT ) {
-    printf("%s: ADC2 is in use by Wi-Fi.\n", esp_err_to_name(r));
+  else if ( err == ESP_ERR_TIMEOUT ) {
+    printf("%s: ADC2 is in use by Wi-Fi.\n", esp_err_to_name(err));
   }
   else {
-    printf("%s\n", esp_err_to_name(r));
+    printf("%s\n", esp_err_to_name(err));
   }
 }
 

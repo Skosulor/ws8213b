@@ -200,7 +200,7 @@ integer is a direction teller, however no mode is currently using it.
  | Dir           | uint8_t | direction value    |
  |---------------+---------+--------------------|
 
-***  rmt_conf
+*** rmt_conf
 
 Configuration file for the remote control driver library. 
 /Note/: Output pin is set by /gpio_num/.
@@ -248,3 +248,5 @@ The first led will jump the the last place.
 
 
 
+
+*** TODO Music
