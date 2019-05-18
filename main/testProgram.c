@@ -19,13 +19,16 @@ void app_main(){
 
   conf[0].walk        = false;
   conf[0].fade        = false;
+  conf[0].music       = true;   // TODO this could be automaticaly set to true in ledEngine
   conf[0].cycleConfig = false;
+  conf[0].musicMode2  = true;
+
 
   // TODO handle fade in cycleConfig
-  conf[0].smooth        = 15;
+  conf[0].smooth        = 0;
   conf[0].walk_rate     = 30;
   conf[0].debugRate     = 1;
-  conf[0].configRate    = 1;  // Cannot be frequency if int
+  conf[0].configRate    = 1;  // Change to mS instead of frequency
   conf[0].fadeIteration = 63;
   conf[0].fadeRate      = 20;
   conf[0].fadeDir       = 1;

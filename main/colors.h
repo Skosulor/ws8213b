@@ -1,5 +1,7 @@
 #include "ws813b.h"
 
+#define RGB 3
+
 /* Some predefined colors */
 
 /* feel free to add more and */

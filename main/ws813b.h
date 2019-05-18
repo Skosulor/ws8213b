@@ -7,13 +7,18 @@
 #define UPDATE_FREQ 1000
 #define UPDATE_FREQ_MS ((1000/UPDATE_FREQ))
 
-// fft
-#define SAMPLE_RATE  10000
+// fft & music
+#define SAMPLE_RATE  20000
 #define N_SAMPLES    256
 #define N_FREQS      12         // n of frequency "summations" to visualize. max 12 100-5k Hz
 #define AVG_OFFSET   7
 #define N_FFT_COLORS 4
 #define MIN_AMP      1.5        // TODO This should be a multiplier not the actual value
+
+// resist led change 
+#define M_RESISTANCE 5
+#define L_RESISTANCE 7
+#define H_RESISTANCE 3
 
 // Bool values
 #define true    1
@@ -71,26 +76,30 @@ struct section_colors_t
 
 struct mode_config
 {
-  bool step;
-  bool fade;
-  bool pulse;
-  bool walk;
+  bool     step;
+  bool     fade;
+  bool     pulse;
+  bool     walk;
+  bool     music;
+  bool     musicMode1;
+  bool     musicMode2;
+  int16_t  section_offset;
+  uint8_t  fadeRate;
+  uint8_t  fadeIteration;       // TODO rename this to something more relevant
+  uint8_t  fadeDir;
+  uint8_t  fadeWalk;
+  uint8_t  fadeWalkRate;
+  uint8_t  fadeWalkFreq;
+  uint8_t  pulseRate;
+  uint8_t  section_length;
+  uint8_t  smooth;
+  uint8_t  cycleConfig;
+  uint8_t  nOfConfigs;
   uint32_t length;
   uint32_t configRate;
   uint16_t walk_rate;
   uint16_t debugRate;
-  int16_t section_offset;
-  uint8_t fadeRate;
-  uint8_t fadeIteration; // TODO rename this to something more relevant
-  uint8_t fadeDir;
-  uint8_t fadeWalk;
-  uint8_t fadeWalkRate;
-  uint8_t fadeWalkFreq;
-  uint8_t pulseRate;
-  uint8_t section_length;
-  uint8_t smooth;
-  uint8_t cycleConfig;
-  uint8_t nOfConfigs;
+
   struct section_colors_t *section_colors;
 } mode_config;
 
@@ -156,8 +165,17 @@ void fft(float complex x[], float complex y[], int N, int step, int offset);
 void adcErrCtrl(esp_err_t r);
 void startAdc(float complex *out , float complex *copy);
 void fbinToFreq(float complex *in , float *out);
-void scaleAmpRelative(float *power, struct mode_config conf, uint8_t *relativeAmplitude, float *brightness);
-void music_mode1(uint8_t *relativeAmplitude, float *brightness, struct mode_config conf);
+void scaleAmpRelative(float *power, uint8_t *amplitudeColor, float *color_brightness, float *relativeAmp);
+void music_mode1(uint8_t *amplitudeColor, float *brightness, struct mode_config conf);
+void music_mode2(float *relativeAmp, struct mode_config conf);
+void resistLedChange(uint8_t r, uint8_t g, uint8_t b, uint16_t led, float resist);
+void resistLowerLedChange(uint8_t r, uint8_t g, uint8_t b, uint16_t led, float resist);
+void variableResistLedChange(uint8_t r, uint8_t g, uint8_t b, uint16_t led, float l_resist, float h_resist);
+
+
+
+
+
 
 
 

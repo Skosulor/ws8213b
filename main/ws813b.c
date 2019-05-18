@@ -75,8 +75,9 @@ void ledEngine(struct mode_config  *mode_conf){
   static uint16_t music_rate_ms  = 1;
 
   // Music mode
+  float musicRelativeAmp[N_FREQS];
   float musicBrightness[N_FREQS];
-  uint8_t musicRelativeAmplitude[N_FREQS];
+  uint8_t musicAmplitudeColor[N_FREQS];
   float complex samples[N_SAMPLES];
   float complex copy[N_SAMPLES];
   float freqAmps[N_FREQS];
@@ -229,14 +230,18 @@ void ledEngine(struct mode_config  *mode_conf){
     /* ----------*/
 
     // TODO change 150 an variable, add enable var in config
-    if((LastWakeTime - music_tick) >= 150){
+    if((LastWakeTime - music_tick) >= 0 && mode_conf[cc].music){
       music_tick = LastWakeTime;
 
       startAdc(samples, copy);
       fft(samples, copy, N_SAMPLES, 1, 0);
       fbinToFreq(samples, freqAmps);
-      scaleAmpRelative(freqAmps, mode_conf[cc], musicRelativeAmplitude, musicBrightness);
-      music_mode1(musicRelativeAmplitude, musicBrightness, mode_conf[cc]);
+      scaleAmpRelative(freqAmps, musicAmplitudeColor, musicBrightness, musicRelativeAmp);
+
+      if(mode_conf[cc].musicMode1)
+        music_mode1(musicAmplitudeColor, musicBrightness, mode_conf[cc]);
+      if(mode_conf[cc].musicMode2)
+        music_mode2(musicRelativeAmp, mode_conf[cc]);
 
       for(i = 0; i < mode_conf[cc].smooth; i++){
         fadeWalk(mode_conf[cc]);
@@ -262,11 +267,11 @@ void ledEngine(struct mode_config  *mode_conf){
   }
 }
 
-void scaleAmpRelative(float *power, struct mode_config conf, uint8_t *relativeAmplitude, float *brightness){
+void scaleAmpRelative(float *power, uint8_t *amplitudeColor, float *color_brightness, float *relativeAmp){
 
   // TODO scale rangers from 3 to 10 or higher for better representation of freq.
 
-  /* uint8_t relativeAmplitude[N_FREQS]; */
+  /* uint8_t amplitudeColor[N_FREQS]; */
   uint8_t i;
   uint16_t max = 0;
   static uint8_t avgCount = 0;
@@ -306,31 +311,36 @@ void scaleAmpRelative(float *power, struct mode_config conf, uint8_t *relativeAm
 
   for(i = 0; i < N_FREQS; i++){
     if(power[i] <= MIN_AMP){
-      relativeAmplitude[i] = 3;
-      brightness[i] = 0;
+      amplitudeColor[i] = 3;
+      color_brightness[i] = 0;
     }
     else if(power[i] <= lowAmp){
-      relativeAmplitude[i] = 2;
-      brightness[i] = power[i]/lowAmp;
+      amplitudeColor[i] = 2;
+      color_brightness[i] = power[i]/lowAmp;
       /* printf("lowamp: %.2f, power[i]: %.2f\n", lowAmp, power[i]); */
     }
     else if(power[i] <= highAmp){
-      relativeAmplitude[i] = 1;
-      brightness[i] = power[i]/highAmp;
+      amplitudeColor[i] = 1;
+      color_brightness[i] = power[i]/highAmp;
     }
     else if(power[i] > highAmp){
-      relativeAmplitude[i] = 0;
-      brightness[i] = power[i]/maxAmp;
+      amplitudeColor[i] = 0;
+      color_brightness[i] = power[i]/maxAmp;
     }
 
-    if(brightness[i] < 0.3)
-      brightness[i] = 0.3;
-    if(brightness[i] > 1)
-      brightness[i] = 1;
+    if(power[i] > MIN_AMP)
+      relativeAmp[i] = power[i]/maxAmp;
+    else
+      relativeAmp[i] = 0;
+
+    if(color_brightness[i] < 0.3)
+      color_brightness[i] = 0.3;
+    if(color_brightness[i] > 1)
+      color_brightness[i] = 1;
 
     power[i] = 0;
 
-    /* printf("i: %d, relativeAmplitude %d, brightness: %.2f\n", i, relativeAmplitude[i], brightness[i]); */
+    /* printf("i: %d, amplitudeColor %d, brightness: %.2f\n", i, amplitudeColor[i], brightness[i]); */
   }
 
   /* printf("\n"); */
@@ -339,17 +349,126 @@ void scaleAmpRelative(float *power, struct mode_config conf, uint8_t *relativeAm
 
 }
 
-void music_mode1(uint8_t *relativeAmplitude, float *brightness, struct mode_config conf){
-  int i,j;
+void music_mode2(float *relativeAmp, struct mode_config conf){
+
+  float rgbBrightness[RGB];
+  uint8_t i, j, r, g ,b;
+
+  // TODO make the scaling a bit less extreme and do some magic in "scaleAmpRelative"
+  const float min = 0.20;
+  const float mid = 0.40;
+
+  for(i = 0; i < RGB; i++){
+    for(j = i*N_FREQS/RGB; j < N_FREQS; j++){
+      rgbBrightness[i] += relativeAmp[j];
+    }
+    rgbBrightness[i] = rgbBrightness[i] / (N_FREQS/RGB);
+    if(rgbBrightness[i] > 1)
+      rgbBrightness[i] = 1;
+    /* printf("i: %d, rgbBrightness: %.3f\n", i, rgbBrightness[i]); */
+
+  }
+
+  r = 255 * (relativeAmp[0] > relativeAmp[1] ? relativeAmp[0]: relativeAmp[1]);
+  g = 255 * (relativeAmp[2] > relativeAmp[3] ? relativeAmp[2]: relativeAmp[3]);
+  b = 255 * (relativeAmp[4] > relativeAmp[5] ? relativeAmp[4]: relativeAmp[5]);
+
+  /* r = 255 * (relativeAmp[0] + relativeAmp[1])/2; */
+  /* g = 255 * (relativeAmp[2] + relativeAmp[3])/2; */
+  /* b = 255 * (relativeAmp[4] + relativeAmp[5])/2; */
+
+  //TODO make this not so cancer
+
+  if(r < g && r < b)
+    r = r*min;
+  else if(g < r && g < b)
+    g = g*min;
+  else if(b < g && b < r)
+    b = b*min;
+
+  if(r < g && r > b)
+    r = r*mid;
+  else if(g < r && g > b)
+    g = g*mid;
+  else if(b < g && b > r)
+    b = b*mid;
+
+  for(i = 0; i <  conf.length; i ++){
+
+    /* resistLedChange(r, g, b, i, M_RESISTANCE); */
+    /* resistLowerLedChange(r, g, b, i, L_RESISTANCE); */
+    variableResistLedChange(r, g, b, i, L_RESISTANCE, H_RESISTANCE);
+
+    /* leds[i].r = 255 * rgbBrightness[0]; */
+    /* leds[i].g = 255 * rgbBrightness[1]; */
+    /* leds[i].b = 255 * rgbBrightness[2]; */
+  }
+
+  for(i = 0; i < RGB; i++){
+      rgbBrightness[i] = 0;
+  }
+}
+
+void music_mode1(uint8_t *amplitudeColor, float *brightness, struct mode_config conf){
+  uint16_t i,j;
+  uint8_t r,g,b;
+
 
   for(i = 0; i < N_FREQS; i ++){
     for(j = i*(conf.length/(N_FREQS)); j <  (i+1)*(conf.length/(N_FREQS)); j ++){
-      leds[j].r = (int)((float)music_colors[relativeAmplitude[i]].red   * brightness[i]);
-      leds[j].g = (int)((float)music_colors[relativeAmplitude[i]].green * brightness[i]);
-      leds[j].b = (int)((float)music_colors[relativeAmplitude[i]].blue  * brightness[i]);
+
+      /* leds[j].r = (int)((float)music_colors[amplitudeColor[i]].red   * brightness[i]); */
+      /* leds[j].g = (int)((float)music_colors[amplitudeColor[i]].green * brightness[i]); */
+      /* leds[j].b = (int)((float)music_colors[amplitudeColor[i]].blue  * brightness[i]); */
+
+      r = (int)((float)music_colors[amplitudeColor[i]].red   * brightness[i]);
+      g = (int)((float)music_colors[amplitudeColor[i]].green * brightness[i]);
+      b = (int)((float)music_colors[amplitudeColor[i]].blue  * brightness[i]);
+
+      variableResistLedChange(r, g, b, j, L_RESISTANCE, H_RESISTANCE);
     }
 
   }
+}
+
+void resistLedChange(uint8_t r, uint8_t g, uint8_t b, uint16_t led, float resist){
+  leds[led].r = leds[led].r - (leds[led].r - r)/resist;
+  leds[led].g = leds[led].g - (leds[led].g - g)/resist;
+  leds[led].b = leds[led].b - (leds[led].b - b)/resist;
+}
+
+void resistLowerLedChange(uint8_t r, uint8_t g, uint8_t b, uint16_t led, float resist){
+  if(leds[led].r > r)
+    leds[led].r = leds[led].r - (leds[led].r - r)/resist;
+  else
+    leds[led].r = r;
+
+  if(leds[led].g > g)
+    leds[led].g = leds[led].g - (leds[led].g - g)/resist;
+  else
+    leds[led].g = g;
+
+  if(leds[led].b > b)
+    leds[led].b = leds[led].b - (leds[led].b - b)/resist;
+  else
+    leds[led].b = b;
+}
+
+void variableResistLedChange(uint8_t r, uint8_t g, uint8_t b, uint16_t led, float l_resist, float h_resist){
+  if(leds[led].r > r)
+    leds[led].r = leds[led].r - (leds[led].r - r)/l_resist;
+  else
+    leds[led].r = leds[led].r - (leds[led].r - r)/h_resist;
+
+  if(leds[led].g > g)
+    leds[led].g = leds[led].g - (leds[led].g - g)/l_resist;
+  else
+    leds[led].g = leds[led].g - (leds[led].g - g)/h_resist;
+
+  if(leds[led].b > b)
+    leds[led].b = leds[led].b - (leds[led].b - b)/l_resist;
+  else
+    leds[led].b = leds[led].b - (leds[led].b - b)/h_resist;
 }
 
 void fft(float complex x[], float complex y[], int N, int step, int offset){
@@ -376,7 +495,7 @@ void fft(float complex x[], float complex y[], int N, int step, int offset){
 }
 
 void fbinToFreq(float complex *in, float *out){
-  /* const static int freqs[N_FREQS]        = {100, 250, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000}; */
+  const static int freqs[N_FREQS]        = {100, 250, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000};
   // TODO consider only using certain frequencies instead of summing them up in chunks
   const static int freqSpacing[N_FREQS] = {175, 375, 750, 1250, 1750, 2250, 2750, 3250, 3750, 4250, 4750, 5000};
 
@@ -396,6 +515,7 @@ void fbinToFreq(float complex *in, float *out){
     if(freqCount >= N_FREQS)
       break;
   }
+
   /* for(i = 0; i < N_FREQS; i ++){ */
   /*   printf("Freq: %4d, power: %.10f\n", abs(freqs[i]), out[i]); */
   /* } */
@@ -422,7 +542,7 @@ void startAdc(float complex *samplesOut, float complex *copy){
   while(i < N_SAMPLES){
     currTime = esp_timer_get_time();
 
-    if(currTime - lastTime >= 100){
+    if(currTime - lastTime >= 50){
       lastTime = esp_timer_get_time();
       err = adc2_get_raw( ADC2_CHANNEL_2,  ADC_WIDTH_12Bit, &amplitude);
 
@@ -456,27 +576,31 @@ void resetModeConfigs(struct mode_config *conf, uint8_t nConfigs, uint16_t nleds
   int i;
   for(i = 0; i < nConfigs; i ++){
 
-    conf[i].length          = nleds;
-    conf[i].nOfConfigs      = nConfigs;
-    conf[i].section_length  = nSections;
-    conf[i].section_offset  = 0;
-    conf[i].fadeIteration   = 0; // TODO rename this to something relevant
-    conf[i].fadeWalkFreq    = 0;
-    conf[i].fadeWalkRate    = 0;
-    conf[i].cycleConfig     = 0;
-    conf[i].configRate      = 0;
-    conf[i].debugRate       = 500;
-    conf[i].pulseRate       = 0;
-    conf[i].walk_rate       = 0;
-    conf[i].fadeWalk        = 0;
-    conf[i].fadeRate        = 0;
-    conf[i].fadeDir         = 0;
-    conf[i].smooth          = 0;
-    conf[i].pulse           = 0;
-    conf[i].step            = 0;
-    conf[i].fade            = 0;
-    conf[i].walk            = 0;
-    conf[i].section_colors  = (malloc(conf[0].section_length * sizeof(section_colors_t)));
+    conf[i].length         = nleds;
+    conf[i].nOfConfigs     = nConfigs;
+    conf[i].section_length = nSections;
+    conf[i].section_offset = 0;
+    conf[i].fadeIteration  = 0; // TODO rename this to something relevant
+    conf[i].fadeWalkFreq   = 0;
+    conf[i].fadeWalkRate   = 0;
+    conf[i].cycleConfig    = 0;
+    conf[i].configRate     = 0;
+    conf[i].debugRate      = 500;
+    conf[i].pulseRate      = 0;
+    conf[i].walk_rate      = 0;
+    conf[i].fadeWalk       = 0;
+    conf[i].fadeRate       = 0;
+    conf[i].fadeDir        = 0;
+    conf[i].smooth         = 0;
+    conf[i].pulse          = false;
+    conf[i].step           = false;
+    conf[i].fade           = false;
+    conf[i].walk           = false;
+    conf[i].music          = false;
+    conf[i].musicMode1     = false;
+    conf[i].musicMode2     = false;
+
+    conf[i].section_colors = (malloc(conf[0].section_length * sizeof(section_colors_t)));
   }
 }
 

@@ -234,10 +234,10 @@ Configuration file for the remote control driver library.
 Moves each led one step backwards on the strip each update. 
 The first led will jump the the last place. 
 
-| *conf. variables* | *Purpose*          |
-|-----------------+------------------|
-| WalkRate        | Update rate (Hz) |
-| Walk            | Enable/disable   |
+| *conf. variables* | *Purpose*          | *Type*    |
+|-----------------+------------------+---------|
+| WalkRate        | Update rate (Hz) | integer |
+| Walk            | Enable/disable   | bool    |
 
 - Associated Function:  stepForward
 
@@ -250,3 +250,6 @@ The first led will jump the the last place.
 
 
 *** TODO Music
+
+**** Music mode 1
+**** Music mode 2
