@@ -4,25 +4,27 @@
 #include <complex.h>
 
 // Engine
-#define UPDATE_FREQ 1000
-#define UPDATE_FREQ_MS ((1000/UPDATE_FREQ))
+#define UPDATE_FREQ    1000
+#define UPDATE_FREQ_MS 1
+/* #define UPDATE_FREQ_MS ((1000/UPDATE_FREQ)) */
 
 // fft & music
-#define SAMPLE_RATE  20000
-#define N_SAMPLES    256
-#define N_FREQS      12         // n of frequency "summations" to visualize. max 12 100-5k Hz
-#define AVG_OFFSET   7
-#define N_FFT_COLORS 4
-#define MIN_AMP      1.5        // TODO This should be a multiplier not the actual value
+#define SAMPLE_RATE_US 50       // 1000000 / 20000
+#define SAMPLE_RATE    20000
+#define N_SAMPLES      256
+#define N_FREQS        12       // n of frequency "summations" to visualize. max 12 100-5k Hz
+#define AVG_OFFSET     7
+#define N_FFT_COLORS   4
+#define MIN_AMP        1.5      // TODO This should be a multiplier not the actual value
 
-// resist led change 
+// resist led change
 #define M_RESISTANCE 5
 #define L_RESISTANCE 7
 #define H_RESISTANCE 3
 
 // Bool values
-#define true    1
-#define false   0
+#define TRUE    1
+#define FALSE   0
 
 // Debug
 #define DEBUG   0
@@ -66,13 +68,12 @@ struct led_struct
 } led_struct;
 
 
-// TODO rename to colors_t
-struct section_colors_t
+struct color_t
 {
   uint8_t red;
   uint8_t blue;
   uint8_t green;
-} section_colors_t;
+} color_t;
 
 struct mode_config
 {
@@ -83,9 +84,10 @@ struct mode_config
   bool     music;
   bool     musicMode1;
   bool     musicMode2;
+  float    configRate;
   int16_t  section_offset;
   uint8_t  fadeRate;
-  uint8_t  fadeIteration;       // TODO rename this to something more relevant
+  uint8_t  fadeIterations;      // TODO rename this to something more relevant
   uint8_t  fadeDir;
   uint8_t  fadeWalk;
   uint8_t  fadeWalkRate;
@@ -96,11 +98,11 @@ struct mode_config
   uint8_t  cycleConfig;
   uint8_t  nOfConfigs;
   uint32_t length;
-  uint32_t configRate;
-  uint16_t walk_rate;
+  uint16_t walkRate;
+  uint16_t musicRate;
   uint16_t debugRate;
 
-  struct section_colors_t *section_colors;
+  struct color_t *section_colors;
 } mode_config;
 
 static const rmt_item32_t setItem[] =
@@ -138,10 +140,10 @@ struct led_struct *leds;
 
 
 
-void init();
+void initRmt(struct mode_config *mode_conf, uint8_t ledPin);
 void stepFade(struct led_struct *led, struct mode_config  conf,
               uint8_t rTarget, uint8_t bTarget, uint8_t gTarget);
-void initColors(struct mode_config *mode_conf, const struct section_colors_t* color);
+void initColors(struct mode_config *mode_conf, const struct color_t* color);
 void ledEngine(struct mode_config  *mode_conf);
 void outputLeds(struct mode_config  mode_conf);
 void setLed(rmt_item32_t *item, uint8_t red, uint8_t blue, uint8_t green);

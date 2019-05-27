@@ -40,7 +40,7 @@ to one section is automatically configured.
 /How to use in steps/:
 0. Configure sdkconfig ( see [[*sdkconfig][sdkconfig]] ) or use the sdkconfig included
 1. Create an array of /led_config/
-2. Set desired modes  ( see [[*init function][init function]] and [[*Config structures][Config structures]] )
+2. Set desired modes  ( see [[*initRmt function][initRmt function]] and [[*Config structures][Config structures]] )
 3. Set desired colors ( see[[*Set colors][ Set colors]] )
 4. Call *ledEngine()* with your /led_config/ array as argument.
 5. Done!
@@ -59,11 +59,11 @@ structures. It is probably possible to use freertos /xCreateTask()/ to create a
 task in which the library is used. This is the end goal inteded way of using the
 library but it has not yet been tested.
 
-** init function
+** initRmt function
 
-Call *init()* with a /led_config/ array as argument to initialize the library. The
+Call *initRmt()* with a /led_config/ array as argument to initRmtialize the library. The
 function is required to initialize the rmt library correctly by defining
-*rmt_conf* and calling /rmt_config/ and /rmt_driver_install/ functions.  *Init()* 
+*rmt_conf* and calling /rmt_config/ and /rmt_driver_install/ functions.  *InitRmt()* 
 will also initialize and allocate memory for a /led_struct/ array.
 
   TODO Add argument for pin out
@@ -97,11 +97,11 @@ The colors will be smoothed out and rotate once every 15 mS.
 void app_main(){
   volatile struct mode_config conf[2];
   resetModeConfigs(conf, 1,   60 , 10);
-  init(conf);
+  initRmt(conf);
 
   conf[0].smooth    = 30;
   conf[0].walk      = 1;
-  conf[0].walk_rate = 15;
+  conf[0].walkRate = 15;
 
   initColors(&conf, testColors);
   setSectionColors(conf[0], leds);
@@ -128,7 +128,7 @@ To enable a mode set its respective variable named after the mode to a non-zero 
 Each mode also have a set of configuration variables which needs to be set,  you can 
 find documentation for each mode under[[*Led Modes][ Led Modes]].
 
-There are some variables which need to be set to let the *init()* function know how
+There are some variables which need to be set to let the *initRmt()* function know how
 to initialize the library correctly. 
 
 - Set length to number of leds you are gonna use on the led strip.
@@ -156,11 +156,11 @@ handles this.
 | smooth         | uint8_t | no          | "smooths" the colors  |
 |----------------+---------+-------------+-----------------------|
 
-*** section_colors_t
+*** color_t
 
-TODO rename to section_colors_t and make an struct section_colors 
+TODO make an struct section_colors 
 
-The structure /section_colors_t/ is meant to be used as an array.  Each element
+The structure /color_t/ is meant to be used as an array.  Each element
 corresponds to one sections color. 
 
 |----------+---------+---------------|

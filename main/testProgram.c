@@ -4,9 +4,10 @@
 #include "ws813b.h"
 #include "colors.h"
 
-#define N_CONF     5
-#define N_LEDS     60
+#define N_CONF     2
+#define N_LEDS     120
 #define N_SECTIONS 10
+#define LED_PIN    4
 
 
 void app_main(){
@@ -15,43 +16,37 @@ void app_main(){
   // TODO add to README
   resetModeConfigs(conf, N_CONF, N_LEDS, N_SECTIONS);
 
-  init(conf);
+  initRmt(conf, LED_PIN);
 
-  conf[0].walk        = false;
-  conf[0].fade        = false;
-  conf[0].music       = true;   // TODO this could be automaticaly set to true in ledEngine
-  conf[0].cycleConfig = false;
-  conf[0].musicMode2  = true;
+  conf[0].walk        = FALSE;
+  conf[0].fade        = FALSE;
+  conf[0].fadeWalk    = FALSE;
+  conf[0].cycleConfig = FALSE;
+  conf[0].musicMode1  = TRUE;
+  conf[0].musicMode2  = FALSE;
 
-
-  // TODO handle fade in cycleConfig
-  conf[0].smooth        = 0;
-  conf[0].walk_rate     = 30;
-  conf[0].debugRate     = 1;
-  conf[0].configRate    = 1;  // Change to mS instead of frequency
-  conf[0].fadeIteration = 63;
-  conf[0].fadeRate      = 20;
-  conf[0].fadeDir       = 1;
+  // TODO handle fade in cycleConfig 
+  conf[0].musicRate      = 1000;
+  conf[0].smooth         = 10;
+  conf[0].walkRate       = 30;
+  conf[0].debugRate      = 1;
+  conf[0].configRate     = 0.1;
+  conf[0].fadeIterations = 63;
+  conf[0].fadeRate       = 20;
+  conf[0].fadeDir        = 1;
 
   repeatModeZero(conf);
 
-
-  conf[1].walk_rate     = 20;
-  conf[2].walk_rate     = 10;
-  conf[3].walk_rate     = 5;
-  conf[4].walk_rate     = 1;
-
-  initColors(&conf, testColors);
-
+  conf[1].musicMode1  = FALSE;
+  conf[1].musicMode1  = TRUE;
 
   // TODO add to README
-  initColors(&conf, testColors);
+  initColors(conf, testColors);
 
   // TODO add to README, MIGHT BE REDUDANT???
   setSectionColors(conf[0]);
-  /* setLeds(conf[0]); */
 
-  while(1)
-    ledEngine(conf);
+  ledEngine(conf);
+  /* while(1) */
 }
 
