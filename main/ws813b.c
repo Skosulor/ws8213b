@@ -34,15 +34,36 @@ void initAdc(){
 
   esp_err_t r;
   gpio_num_t adc_gpio_num;
-  r = adc2_pad_get_io_num( ADC2_CHANNEL_2, &adc_gpio_num );
+  r = adc1_pad_get_io_num( ADC1_CHANNEL_6, &adc_gpio_num );
   assert( r == ESP_OK );
-  adc2_config_channel_atten( ADC2_CHANNEL_2, ADC_ATTEN_11db );
+  adc1_config_width(ADC_WIDTH_BIT_12);
+  adc1_config_channel_atten( ADC1_CHANNEL_6, ADC_ATTEN_11db );
   vTaskDelay(2 * portTICK_PERIOD_MS);
 
 }
 
+void ledEngineTest(void *param){
+
+  int i,j;
+  struct mode_config *conf = (struct mode_config*) param;
+  struct mode_config configCopy[conf[0].nOfConfigs];
+
+  for(i = 0; i < conf[0].nOfConfigs; i++){
+    configCopy[i].section_colors = (malloc(conf[0].section_length * sizeof(color_t)));
+    configCopy[i] = conf[i];
+
+    for(j = 0; j < configCopy[i].section_length; j ++){
+      configCopy[i].section_colors[j] = conf[i].section_colors[j];
+    }
+  }
+
+  ledEngine(configCopy);
+}
+
 void ledEngine(struct mode_config  *mode_conf){
   welcome();
+
+
 
   // n of freertos ticks for each mode
   const  TickType_t freq = UPDATE_FREQ_MS;
@@ -219,7 +240,6 @@ void ledEngine(struct mode_config  *mode_conf){
 
     if((LastWakeTime - walkTick) >= walkRateMs && mode_conf[cc].walk){
       walkTick = LastWakeTime;
-
       stepForward(&mode_conf[cc]);
       ledsUpdated = TRUE;
     }
@@ -228,11 +248,13 @@ void ledEngine(struct mode_config  *mode_conf){
     /* fade_walk mode */
     /* ---------------*/
 
+    // TODO change behaviour of this one
     if(fadeWalk_t >= mode_conf[cc].fadeWalkRate && mode_conf[cc].fadeWalk){
       fadeWalk_t = 0;
       fadeWalk(mode_conf[cc]);
       setLeds(mode_conf[cc]);
-      outputLeds(mode_conf[cc]);
+      ledsUpdated = TRUE;
+      /* outputLeds(mode_conf[cc]); */
     }
     /* --------- */
     /*    FFT    */
@@ -251,10 +273,10 @@ void ledEngine(struct mode_config  *mode_conf){
       if(mode_conf[cc].musicMode2)
         music_mode2(musicRelativeAmp, mode_conf[cc]);
 
+
       for(i = 0; i < mode_conf[cc].smooth; i++){
         fadeWalk(mode_conf[cc]);
       }
-
       setLeds(mode_conf[cc]);
       ledsUpdated = TRUE;
 
@@ -271,6 +293,11 @@ void ledEngine(struct mode_config  *mode_conf){
       outputLeds(mode_conf[cc]);
       et = esp_timer_get_time();
     }
+
+    /* UBaseType_t mark = uxTaskGetStackHighWaterMark( NULL ); */
+    /* printf("unused stack %d\n", mark); */
+
+
     vTaskDelayUntil( &LastWakeTime, freq);
   }
 }
@@ -280,64 +307,120 @@ void scaleAmpRelative(float *power, uint8_t *amplitudeColor, float *color_bright
   // TODO scale rangers from 3 to 10 or higher for better representation of freq.
 
   /* uint8_t amplitudeColor[N_FREQS]; */
-  uint8_t i;
+  uint8_t i, j;
   uint16_t max = 0;
   static uint8_t avgCount = 0;
-  float avgAmp[10];
+  float avgAmp[N_AVG_VAL];
   /* float brightness[N_FREQS]; */
   float avg, avgOfArrayAvg;
   float lowAmp, highAmp, maxAmp;
 
+  static float testAVG[N_FREQS][N_AVG_VAL];
+  float invidAvg[N_FREQS];
+
+
   avg = 0;
 
   // TODO move or use another way to "normalize" low freq
-  power[0] -= 0.8;
+  power[0] -= LOW_HZ_OFFSET;
   for(i = 0; i < N_FREQS; i++){
     avg += power[i];
+
+    testAVG[i][avgCount] = power[i];
+
     if(power[i] > max)
       max = power[i];
   }
 
+
+  for(i = 0; i < N_FREQS; i++){
+    invidAvg[i] = 0;
+  }
+
+
+  for(j = 0; j < N_FREQS; j++){
+    for(i = 0; i < N_AVG_VAL; i++){
+      invidAvg[j] += testAVG[j][i];
+      /* printf("testAvg %d, val %.2f\n", j,  testAVG[j][i]); */
+    }
+    invidAvg[j] = invidAvg[j] / N_AVG_VAL;
+    /* printf("invidAvg %.2f\n\n" , invidAvg[j]); */
+    /* printf("power[i] %.2f\n\n" , power[j]); */
+  }
+
+  /* for(i = 0; i < N_FREQS; i++){ */
+  /*   printf("%.2f\n", invidAvg[i]); */
+  /* } */
+
   avg = avg / (N_FREQS);
   avgAmp[avgCount] = avg;
-  avgCount = (avgCount + 1) % 10;
+  avgCount = (avgCount + 1) % N_AVG_VAL;
 
   avgOfArrayAvg = 0;
   for(i = 0; i < 10; i++){
     avgOfArrayAvg += avgAmp[i];
   }
 
-  avgOfArrayAvg = avgOfArrayAvg / 10 + AVG_OFFSET;
+
+  avgOfArrayAvg = avgOfArrayAvg / N_AVG_VAL + AVG_OFFSET;
+
   lowAmp = avgOfArrayAvg * 0.80;
   highAmp = avgOfArrayAvg * 1.10;
   maxAmp = highAmp * 1.20;
+
   if(lowAmp < MIN_AMP)
     lowAmp = MIN_AMP;
 
 
   // TODO dont use a billion else-ifs
 
-  for(i = 0; i < N_FREQS; i++){
-    if(power[i] <= MIN_AMP){
-      amplitudeColor[i] = 3;
-      color_brightness[i] = 0;
-    }
-    else if(power[i] <= lowAmp){
-      amplitudeColor[i] = 2;
-      color_brightness[i] = power[i]/lowAmp;
-      /* printf("lowamp: %.2f, power[i]: %.2f\n", lowAmp, power[i]); */
-    }
-    else if(power[i] <= highAmp){
-      amplitudeColor[i] = 1;
-      color_brightness[i] = power[i]/highAmp;
-    }
-    else if(power[i] > highAmp){
-      amplitudeColor[i] = 0;
-      color_brightness[i] = power[i]/maxAmp;
-    }
+  /* for(i = 0; i < N_FREQS; i++){ */
+  /*   if(power[i] <= MIN_AMP){ */
+  /*     amplitudeColor[i] = 3; */
+  /*     color_brightness[i] = 0; */
+  /*   } */
+  /*   else if(power[i] <= lowAmp){ */
+  /*     amplitudeColor[i] = 2; */
+  /*     color_brightness[i] = power[i]/lowAmp; */
+  /*     /\* printf("lowamp: %.2f, power[i]: %.2f\n", lowAmp, power[i]); *\/ */
+  /*   } */
+  /*   else if(power[i] <= highAmp){ */
+  /*     amplitudeColor[i] = 1; */
+  /*     color_brightness[i] = power[i]/highAmp; */
+  /*   } */
+  /*   else if(power[i] > highAmp){ */
+  /*     amplitudeColor[i] = 0; */
+  /*     color_brightness[i] = power[i]/maxAmp; */
+  /*   } */
 
-    if(power[i] > MIN_AMP)
-      relativeAmp[i] = power[i]/maxAmp;
+
+    for(i = 0; i < N_FREQS; i++){
+      if(power[i] <= MIN_AMP || power[i] < invidAvg[i]){
+        amplitudeColor[i] = 3;
+        color_brightness[i] = 0;
+      }
+      else if(power[i] <= invidAvg[i] * 1.2){
+        amplitudeColor[i] = 2;
+        color_brightness[i] = power[i]/lowAmp;
+        /* printf("lowamp: %.2f, power[i]: %.2f\n", lowAmp, power[i]); */
+      }
+      else if(power[i] <=invidAvg[i] * 1.5 ){
+        amplitudeColor[i] = 1;
+        color_brightness[i] = power[i]/highAmp;
+      }
+      else if(power[i] > invidAvg[i] * 1.8){
+        amplitudeColor[i] = 0;
+        color_brightness[i] = power[i]/maxAmp;
+      }
+
+
+
+
+
+    /* if(power[i] > invidAvg[i] * 3 && power[i] > MIN_AMP) */
+    if(power[i] > MIN_AMP && power[i] > invidAvg[i])
+      /* relativeAmp[i] = power[i]/maxAmp; */
+      relativeAmp[i] = power[i]/max;
     else
       relativeAmp[i] = 0;
 
@@ -348,12 +431,8 @@ void scaleAmpRelative(float *power, uint8_t *amplitudeColor, float *color_bright
 
     power[i] = 0;
 
-    /* printf("i: %d, amplitudeColor %d, brightness: %.2f\n", i, amplitudeColor[i], brightness[i]); */
   }
 
-  /* printf("\n"); */
-  /* printf("lowamp: %.2f, highAmp: %.2f, MaxAmp: %.2f, avg: %.2f\n", */
-  /*        lowAmp, highAmp, maxAmp, avgOfArrayAvg); */
 
 }
 
@@ -362,9 +441,9 @@ void music_mode2(float *relativeAmp, struct mode_config conf){
   float rgbBrightness[RGB];
   uint8_t i, j, r, g ,b;
 
-  // TODO make the scaling a bit less extreme and do some magic in "scaleAmpRelative"
-  const float min = 0.20;
-  const float mid = 0.40;
+  // TODO DEFINE THEESE
+  const float min = 0.0;
+  const float mid = 0.3;
 
   for(i = 0; i < RGB; i++){
     for(j = i*N_FREQS/RGB; j < N_FREQS; j++){
@@ -373,17 +452,12 @@ void music_mode2(float *relativeAmp, struct mode_config conf){
     rgbBrightness[i] = rgbBrightness[i] / (N_FREQS/RGB);
     if(rgbBrightness[i] > 1)
       rgbBrightness[i] = 1;
-    /* printf("i: %d, rgbBrightness: %.3f\n", i, rgbBrightness[i]); */
 
   }
 
   r = 255 * (relativeAmp[0] > relativeAmp[1] ? relativeAmp[0]: relativeAmp[1]);
   g = 255 * (relativeAmp[2] > relativeAmp[3] ? relativeAmp[2]: relativeAmp[3]);
   b = 255 * (relativeAmp[4] > relativeAmp[5] ? relativeAmp[4]: relativeAmp[5]);
-
-  /* r = 255 * (relativeAmp[0] + relativeAmp[1])/2; */
-  /* g = 255 * (relativeAmp[2] + relativeAmp[3])/2; */
-  /* b = 255 * (relativeAmp[4] + relativeAmp[5])/2; */
 
   //TODO make this not so cancer
 
@@ -402,14 +476,7 @@ void music_mode2(float *relativeAmp, struct mode_config conf){
     b = b*mid;
 
   for(i = 0; i <  conf.length; i ++){
-
-    /* resistLedChange(r, g, b, i, M_RESISTANCE); */
-    /* resistLowerLedChange(r, g, b, i, L_RESISTANCE); */
     variableResistLedChange(r, g, b, i, L_RESISTANCE, H_RESISTANCE);
-
-    /* leds[i].r = 255 * rgbBrightness[0]; */
-    /* leds[i].g = 255 * rgbBrightness[1]; */
-    /* leds[i].b = 255 * rgbBrightness[2]; */
   }
 
   for(i = 0; i < RGB; i++){
@@ -421,13 +488,8 @@ void music_mode1(uint8_t *amplitudeColor, float *brightness, struct mode_config 
   uint16_t i,j;
   uint8_t r,g,b;
 
-
   for(i = 0; i < N_FREQS; i ++){
     for(j = i*(conf.length/(N_FREQS)); j <  (i+1)*(conf.length/(N_FREQS)); j ++){
-
-      /* leds[j].r = (int)((float)music_colors[amplitudeColor[i]].red   * brightness[i]); */
-      /* leds[j].g = (int)((float)music_colors[amplitudeColor[i]].green * brightness[i]); */
-      /* leds[j].b = (int)((float)music_colors[amplitudeColor[i]].blue  * brightness[i]); */
 
       r = (int)((float)music_colors[amplitudeColor[i]].red   * brightness[i]);
       g = (int)((float)music_colors[amplitudeColor[i]].green * brightness[i]);
@@ -435,7 +497,6 @@ void music_mode1(uint8_t *amplitudeColor, float *brightness, struct mode_config 
 
       variableResistLedChange(r, g, b, j, L_RESISTANCE, H_RESISTANCE);
     }
-
   }
 }
 
@@ -515,7 +576,7 @@ void fbinToFreq(float complex *in, float *out){
 
   freqCount = 0;
 
-  for(i = 2; i < N_SAMPLES; i++){
+  for(i = 1; i < N_SAMPLES; i++){
    out[freqCount] += power[i];
     if(freqSpacing[freqCount] < i*(float)SAMPLE_RATE/N_SAMPLES)
       freqCount += 1;
@@ -551,17 +612,12 @@ void startAdc(float complex *samplesOut, float complex *copy){
 
     if(currTime - lastTime >= SAMPLE_RATE_US){
       lastTime = esp_timer_get_time();
-      err = adc2_get_raw( ADC2_CHANNEL_2,  ADC_WIDTH_12Bit, &amplitude);
+      amplitude = adc1_get_raw( ADC1_CHANNEL_6);
 
-      if ( err == ESP_OK ) {
-        /* voltage = 3.3/4098 * amplitude - 1.633; */
         voltage = (amplitude - 2048) * 3.3/4098;
         samplesOut[i] = voltage;
         copy[i] = voltage;
         i += 1;
-      }
-      else
-        adcErrCtrl(err);
     }
   }
 }
@@ -679,17 +735,12 @@ void setSectionColors(struct mode_config  conf){
       leds[j].b = conf.section_colors[i].blue;
     }
   }
-  /* for(i = 0; i < conf.length; i++){ */
-  /* printf("R: %d, B: %d, G: %d, i: %d\n", leds[i].r, leds[i].b, leds[i].g, i); */
-  /* } */
 }
 
 void outputLeds(struct mode_config  mode_conf){
   int i;
-  /* ESP_ERROR_CHECK(rmt_write_items(rmt_conf.channel, leds[0].item, 24, 1)); */
   for(i = 0; i < mode_conf.length; i ++){
     ESP_ERROR_CHECK(rmt_write_items(rmt_conf.channel, leds[i].item, 24, 1));
-    /* printf("i: %d, R: %d\n", i, leds[i].r); */
   }
 
   ESP_ERROR_CHECK(rmt_write_items(rmt_conf.channel, setItem, 1, 1));
