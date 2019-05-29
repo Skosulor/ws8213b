@@ -8,82 +8,82 @@
 /* make a pull request */
 
 
-static const struct color_t color_red = {
+static const color_t color_red = {
   .red = 0,
   .blue = 255,
   .green = 0,
 };
-static const struct color_t color_blue = {
+static const color_t color_blue = {
   .red = 0,
   .blue = 255,
   .green = 0,
 };
-static const struct color_t color_green = {
+static const color_t color_green = {
   .red = 0,
   .blue = 0,
   .green = 255,
 };
-static const struct color_t color_white = {
+static const color_t color_white = {
   .red = 255,
   .blue = 255,
   .green = 255,
 };
 
-static const struct color_t color_black = {
+static const color_t color_black = {
   .red = 0,
   .blue = 0,
   .green = 0,
 };
 
-static const struct color_t color_Purple  = {
+static const color_t color_Purple  = {
   .red = 255,
   .green = 0,
   .blue = 200,
 };
 
-static const struct color_t color_Yellow = {
+static const color_t color_Yellow = {
   .red = 255,
   .green = 125,
   .blue = 0,
 };
 
-static const struct color_t color_Green = {
+static const color_t color_Green = {
   .red = 0,
   .green = 255,
   .blue = 0,
 };
 
-static const struct color_t color_light_purple = {
+static const color_t color_light_purple = {
   .red = 255,
   .green = 0,
   .blue = 100,
 };
 
-static const struct color_t color_Orange = {
+static const color_t color_Orange = {
   .red = 255,
   .green = 50,
   .blue = 0,
 };
 
-static const struct color_t color_light_pink = {
+static const color_t color_light_pink = {
   .red = 255,
   .green = 40,
   .blue = 40,
 };
 
-static const struct color_t color_pink = {
+static const color_t color_pink = {
   .red = 255,
   .green = 0,
   .blue = 25,
 };
 
-static const struct color_t color_cyan = {
+static const color_t color_cyan = {
   .red = 200,
   .green = 255,
   .blue = 200
 };
 
-static const struct color_t music_colors[N_FFT_COLORS] = {
+static const color_t music_colors[N_FFT_COLORS] = {
 
 
   {
@@ -110,7 +110,7 @@ static const struct color_t music_colors[N_FFT_COLORS] = {
     .blue = 30,
   }};
 
-static const struct color_t testColors[10] = {
+static const color_t testColors[10] = {
 
   {
     .red = 255,      // Purple

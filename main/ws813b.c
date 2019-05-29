@@ -9,7 +9,7 @@
 #include "esp_adc_cal.h"
 #include "colors.h"
 
-void initRmt(struct mode_config *mode_conf, uint8_t ledPin){
+void initRmt(mode_config *mode_conf, uint8_t ledPin){
 
   rmt_conf.rmt_mode                       = RMT_MODE_TX;
   rmt_conf.channel                        = RMT_CHANNEL_0;
@@ -45,8 +45,8 @@ void initAdc(){
 void ledEngineTest(void *param){
 
   int i,j;
-  struct mode_config *conf = (struct mode_config*) param;
-  struct mode_config configCopy[conf[0].nOfConfigs];
+  mode_config *conf = (mode_config*) param;
+  mode_config configCopy[conf[0].nOfConfigs];
 
   for(i = 0; i < conf[0].nOfConfigs; i++){
     configCopy[i].section_colors = (malloc(conf[0].section_length * sizeof(color_t)));
@@ -60,10 +60,22 @@ void ledEngineTest(void *param){
   ledEngine(configCopy);
 }
 
-void ledEngine(struct mode_config  *mode_conf){
+void ledEngine(mode_config  *mode_conf){
   welcome();
 
+  modeConfigQueue = xQueueCreate(1, sizeof(mode_config*));
+  if(modeConfigQueue == 0){
+    printf("failed to allocate memory for modeConfigQueue\n");
+    printf("Entering endless loop\n");
+    while(1){}
+  }
 
+  modeConfigQueueAck = xQueueCreate(1, sizeof(mode_config*));
+  if(modeConfigQueue == 0){
+    printf("failed to allocate memory for modeConfigQueueAck\n");
+    printf("Entering endless loop\n");
+    while(1){}
+  }
 
   // n of freertos ticks for each mode
   const  TickType_t freq = UPDATE_FREQ_MS;
@@ -84,11 +96,12 @@ void ledEngine(struct mode_config  *mode_conf){
   static uint8_t    nc;         // Number of configs
 
   // Period of modes in milliseconds
-  static uint16_t walkRateMs   = 1000;
-  static uint16_t fadeRateMs   = 1000;
-  static uint16_t configRateMs = 1000;
-  static uint16_t debugRateMs  = 1000;
-  static uint16_t musicRateMs  = 1;
+  static rates_struct r;
+   r.walkRateMs   = 1000;
+   r.fadeRateMs   = 1000;
+   r.configRateMs = 1000;
+   r.debugRateMs  = 1000;
+   r.musicRateMs  = 1;
 
   // Music mode
   bool    adcInitiated = FALSE;
@@ -103,23 +116,14 @@ void ledEngine(struct mode_config  *mode_conf){
   if(mode_conf[cc].musicMode1 || mode_conf[cc].musicMode2)
     mode_conf[cc].music = TRUE;
 
-  if(mode_conf[0].walk)
-   walkRateMs   = 1000/(((float)(mode_conf[0].walkRate)));
-  if(mode_conf[0].fade)
-   fadeRateMs   = 1000/(((float)(mode_conf[0].fadeRate)));
-  if(mode_conf[0].cycleConfig)
-   configRateMs = 1000/(((float)(mode_conf[0].configRate)));
-  if(mode_conf[0].debugRate > 0)
-   debugRateMs  = 1000/(((float)(mode_conf[0].debugRate)));
-  if(mode_conf[0].music)
-    musicRateMs = 1000/(((float)(mode_conf[0].musicRate)));
+  updateRates(&r, mode_conf[cc]);
 
   DPRINT(("----------------------  \n Initial rates in mS\n---------------------- \n "));
-  DPRINT(("walkRateMs %d\n" , walkRateMs));
-  DPRINT(("fadeRateMs %d\n" , fadeRateMs));
-  DPRINT(("configRateMs %d\n" , configRateMs));
-  DPRINT(("debugRateMs %d\n" , debugRateMs));
-  DPRINT(("musicRateMs %d\n" , musicRateMs));
+  DPRINT(("walkRateMs %d\n" , r.walkRateMs));
+  DPRINT(("r.fadeRateMs %d\n" , r.fadeRateMs));
+  DPRINT(("r.configRateMs %d\n" , r.configRateMs));
+  DPRINT(("r.debugRateMs %d\n" , r.debugRateMs));
+  DPRINT(("r.musicRateMs %d\n" , r.musicRateMs));
   DPRINT(("----------------------  \n Initial rates in mS \n---------------------- \n\n "));
 
   int64_t bt = 0;
@@ -158,11 +162,14 @@ void ledEngine(struct mode_config  *mode_conf){
   while(1){
     LastWakeTime = xTaskGetTickCount();
 
+    if(updateConfigFromQueue(mode_conf))
+      updateRates(&r, mode_conf[cc]);
+
     /* ------ */
     /* DEBUG */
     /* ------*/
 
-    if(LastWakeTime - debugTick > debugRateMs){
+    if(LastWakeTime - debugTick > r.debugRateMs){
       debugTick = LastWakeTime;
 
       DPRINT(("----------------------- Debug info ----------------------- \n"));
@@ -186,7 +193,7 @@ void ledEngine(struct mode_config  *mode_conf){
     /* Config Update */
     /* --------------*/
 
-    if((LastWakeTime - configTick) > configRateMs && mode_conf[cc].cycleConfig){
+    if((LastWakeTime - configTick) > r.configRateMs && mode_conf[cc].cycleConfig){
       configTick = LastWakeTime;
       pc = cc;
       cc = ((cc + 1) % nc);
@@ -202,24 +209,14 @@ void ledEngine(struct mode_config  *mode_conf){
         initAdc();
         adcInitiated = TRUE;
       }
-
-      if(mode_conf[cc].walk)
-        walkRateMs   = 1/(((float)(mode_conf[cc].walkRate))/1000);
-      if(mode_conf[cc].fade)
-        fadeRateMs   = 1/(((float)(mode_conf[cc].fadeRate))/1000);
-      if(mode_conf[cc].cycleConfig)
-        configRateMs = 1/(((float)(mode_conf[cc].configRate))/1000);
-      if(mode_conf[cc].debugRate > 0)
-        debugRateMs  = 1/(((float)(mode_conf[cc].debugRate))/1000);
-      if(mode_conf[cc].music)
-        musicRateMs  = 1000/(((float)(mode_conf[0].musicRate)));
+      updateRates(&r, mode_conf[cc]);
     }
 
     /* --------- */
     /* fade mode */
     /* ----------*/
 
-    if((LastWakeTime - fadeTick) >= fadeRateMs && mode_conf[cc].fade){
+    if((LastWakeTime - fadeTick) >= r.fadeRateMs && mode_conf[cc].fade){
       fadeTick = LastWakeTime;
 
       if(mode_conf[cc].fadeDir == 0){
@@ -238,7 +235,7 @@ void ledEngine(struct mode_config  *mode_conf){
     /* walk mode */
     /* ----------*/
 
-    if((LastWakeTime - walkTick) >= walkRateMs && mode_conf[cc].walk){
+    if((LastWakeTime - walkTick) >= r.walkRateMs && mode_conf[cc].walk){
       walkTick = LastWakeTime;
       stepForward(&mode_conf[cc]);
       ledsUpdated = TRUE;
@@ -260,7 +257,7 @@ void ledEngine(struct mode_config  *mode_conf){
     /*    FFT    */
     /* ----------*/
 
-    if((LastWakeTime - musicTick) >= musicRateMs && mode_conf[cc].music){
+    if((LastWakeTime - musicTick) >= r.musicRateMs && mode_conf[cc].music){
       musicTick = LastWakeTime;
       startAdc(samples, copy);
       fft(samples, copy, N_SAMPLES, 1, 0);
@@ -294,10 +291,6 @@ void ledEngine(struct mode_config  *mode_conf){
       et = esp_timer_get_time();
     }
 
-    /* UBaseType_t mark = uxTaskGetStackHighWaterMark( NULL ); */
-    /* printf("unused stack %d\n", mark); */
-
-
     vTaskDelayUntil( &LastWakeTime, freq);
   }
 }
@@ -306,51 +299,35 @@ void scaleAmpRelative(float *power, uint8_t *amplitudeColor, float *color_bright
 
   // TODO scale rangers from 3 to 10 or higher for better representation of freq.
 
-  /* uint8_t amplitudeColor[N_FREQS]; */
   uint8_t i, j;
   uint16_t max = 0;
   static uint8_t avgCount = 0;
   float avgAmp[N_AVG_VAL];
-  /* float brightness[N_FREQS]; */
   float avg, avgOfArrayAvg;
   float lowAmp, highAmp, maxAmp;
-
-  static float testAVG[N_FREQS][N_AVG_VAL];
+  static float testAVG[N_FREQS][N_AVG_VAL]; // TODO rename / change stuff
   float invidAvg[N_FREQS];
-
-
   avg = 0;
 
   // TODO move or use another way to "normalize" low freq
   power[0] -= LOW_HZ_OFFSET;
   for(i = 0; i < N_FREQS; i++){
     avg += power[i];
-
     testAVG[i][avgCount] = power[i];
-
     if(power[i] > max)
       max = power[i];
   }
-
 
   for(i = 0; i < N_FREQS; i++){
     invidAvg[i] = 0;
   }
 
-
   for(j = 0; j < N_FREQS; j++){
     for(i = 0; i < N_AVG_VAL; i++){
       invidAvg[j] += testAVG[j][i];
-      /* printf("testAvg %d, val %.2f\n", j,  testAVG[j][i]); */
     }
     invidAvg[j] = invidAvg[j] / N_AVG_VAL;
-    /* printf("invidAvg %.2f\n\n" , invidAvg[j]); */
-    /* printf("power[i] %.2f\n\n" , power[j]); */
   }
-
-  /* for(i = 0; i < N_FREQS; i++){ */
-  /*   printf("%.2f\n", invidAvg[i]); */
-  /* } */
 
   avg = avg / (N_FREQS);
   avgAmp[avgCount] = avg;
@@ -360,7 +337,6 @@ void scaleAmpRelative(float *power, uint8_t *amplitudeColor, float *color_bright
   for(i = 0; i < 10; i++){
     avgOfArrayAvg += avgAmp[i];
   }
-
 
   avgOfArrayAvg = avgOfArrayAvg / N_AVG_VAL + AVG_OFFSET;
 
@@ -413,10 +389,6 @@ void scaleAmpRelative(float *power, uint8_t *amplitudeColor, float *color_bright
         color_brightness[i] = power[i]/maxAmp;
       }
 
-
-
-
-
     /* if(power[i] > invidAvg[i] * 3 && power[i] > MIN_AMP) */
     if(power[i] > MIN_AMP && power[i] > invidAvg[i])
       /* relativeAmp[i] = power[i]/maxAmp; */
@@ -430,13 +402,10 @@ void scaleAmpRelative(float *power, uint8_t *amplitudeColor, float *color_bright
       color_brightness[i] = 1;
 
     power[i] = 0;
-
   }
-
-
 }
 
-void music_mode2(float *relativeAmp, struct mode_config conf){
+void music_mode2(float *relativeAmp, mode_config conf){
 
   float rgbBrightness[RGB];
   uint8_t i, j, r, g ,b;
@@ -484,7 +453,7 @@ void music_mode2(float *relativeAmp, struct mode_config conf){
   }
 }
 
-void music_mode1(uint8_t *amplitudeColor, float *brightness, struct mode_config conf){
+void music_mode1(uint8_t *amplitudeColor, float *brightness, mode_config conf){
   uint16_t i,j;
   uint8_t r,g,b;
 
@@ -589,9 +558,6 @@ void fbinToFreq(float complex *in, float *out){
   /* } */
   /* printf("\n"); */
 
-  /* for(i = 0; i < freqCount; i++){ */
-  /*   out[i] = 0; */
-  /* } */
 }
 
 void startAdc(float complex *samplesOut, float complex *copy){
@@ -635,7 +601,7 @@ void adcErrCtrl(esp_err_t err){
   }
 }
 
-void resetModeConfigs(struct mode_config *conf, uint8_t nConfigs, uint16_t nleds, uint8_t nSections){
+void initModeConfigs(mode_config *conf, uint8_t nConfigs, uint16_t nleds, uint8_t nSections){
   int i;
   for(i = 0; i < nConfigs; i ++){
 
@@ -643,20 +609,18 @@ void resetModeConfigs(struct mode_config *conf, uint8_t nConfigs, uint16_t nleds
     conf[i].nOfConfigs     = nConfigs;
     conf[i].section_length = nSections;
     conf[i].section_offset = 0;
-    conf[i].fadeIterations  = 0; // TODO rename this to something relevant
+    conf[i].fadeIterations = 0; // TODO rename this to something relevant
     conf[i].fadeWalkFreq   = 0;
     conf[i].fadeWalkRate   = 0;
     conf[i].cycleConfig    = 0;
     conf[i].configRate     = 0;
     conf[i].debugRate      = 500;
-    conf[i].pulseRate      = 0;
     conf[i].musicRate      = 0;
     conf[i].walkRate       = 0;
     conf[i].fadeRate       = 0;
     conf[i].fadeWalk       = 0;
     conf[i].fadeDir        = 0;
     conf[i].smooth         = 0;
-    conf[i].pulse          = FALSE;
     conf[i].step           = FALSE;
     conf[i].fade           = FALSE;
     conf[i].walk           = FALSE;
@@ -668,20 +632,20 @@ void resetModeConfigs(struct mode_config *conf, uint8_t nConfigs, uint16_t nleds
   }
 }
 
-void repeatModeZero(struct mode_config *conf){
+void repeatModeZero(mode_config *conf){
   int i;
   for(i = 1; i < conf[0].nOfConfigs; i++)
     conf[i] = conf[0];
 }
 
-void initColors(struct mode_config  *mode_conf, const struct color_t *color){
+void initColors(mode_config  *mode_conf, const color_t *color){
   int i;
   for(i = 0; i < mode_conf->section_length; i ++){
     mode_conf->section_colors[i] = color[i];
   }
 }
 
-void fadeWalk( struct mode_config  conf){
+void fadeWalk( mode_config  conf){
   int i;
   for(i = 0; i < conf.length; i++){
     /* printf("Red: %d, i: %d\n", leds[i].r, i); */
@@ -692,7 +656,7 @@ void fadeWalk( struct mode_config  conf){
   }
 }
 
-void fadeZero(struct mode_config *conf){
+void fadeZero(mode_config *conf){
   int i;
   static uint8_t it = 0;
   for(i = 0; i < conf->length; i++){
@@ -708,7 +672,7 @@ void fadeZero(struct mode_config *conf){
   }
 }
 
-void fadeTo(struct mode_config *conf){
+void fadeTo(mode_config *conf){
   int i;
   static uint8_t it = 0;
 
@@ -726,7 +690,7 @@ void fadeTo(struct mode_config *conf){
   }
 }
 
-void setSectionColors(struct mode_config  conf){
+void setSectionColors(mode_config  conf){
   int i,j;
   for(i = 0; i < conf.section_length; i ++){
     for(j = i*(conf.length/conf.section_length); j <  (i+1)*(conf.length/conf.section_length); j ++){
@@ -737,7 +701,7 @@ void setSectionColors(struct mode_config  conf){
   }
 }
 
-void outputLeds(struct mode_config  mode_conf){
+void outputLeds(mode_config  mode_conf){
   int i;
   for(i = 0; i < mode_conf.length; i ++){
     ESP_ERROR_CHECK(rmt_write_items(rmt_conf.channel, leds[i].item, 24, 1));
@@ -747,7 +711,7 @@ void outputLeds(struct mode_config  mode_conf){
 
 }
 
-void setLeds(struct mode_config  conf){
+void setLeds(mode_config  conf){
   int i;
   for(i = 0; i < conf.length; i ++){
     setLed(leds[i].item, leds[i].r, leds[i].b, leds[i].g);
@@ -792,7 +756,7 @@ void printDuration0(rmt_item32_t *item){
   }
 }
 
-void stepForward(struct mode_config  *conf){
+void stepForward(mode_config  *conf){
   int i;
   struct led_struct temp = leds[0];
   /* printf("led one red = %d\n", leds[0].r); */
@@ -804,17 +768,6 @@ void stepForward(struct mode_config  *conf){
   if(conf->section_offset <= -(int16_t)conf->length)
     conf->section_offset = 0;
 }
-
-void stepFade(struct led_struct *led, struct mode_config  conf,
-              uint8_t rTarget, uint8_t bTarget, uint8_t gTarget){
-
-  led->r = led->r - (((double)led->r-(double)rTarget)/(double)conf.fadeRate);
-  led->b = led->b - ((led->b-bTarget)/conf.fadeRate);
-  led->g = led->g - ((led->g-gTarget)/conf.fadeRate);
-
-}
-
-void pulse(struct mode_config  conf){}
 
 void welcome(){
 
@@ -842,4 +795,49 @@ void welcome(){
   printf("         |  |  ||   ||     || .'||   |\n");
   printf("         |_____||_|_||_|_|_||__,||_|_|\n");
 
+}
+
+int updateConfigFromQueue(mode_config *mode_conf){
+  struct mode_conf *noData;
+  if( xQueueReceive( modeConfigQueueAck, &noData,(TickType_t)0)){
+    xQueueSend( modeConfigQueue, ( void * ) &(mode_conf), ( TickType_t ) 0 );
+    if( xQueueReceive( modeConfigQueueAck, &noData,(TickType_t)100000)){
+      printf("Config updated\n");
+      return 1;
+    }
+    else
+      return 0;
+  }
+  return 0;
+}
+mode_config* requestConfig(){
+  mode_config *noData;
+  mode_config *config;
+  if(modeConfigQueue != 0){
+    xQueueSend( modeConfigQueueAck, ( void * ) &noData, ( TickType_t ) 0 );
+    if( xQueueReceive( modeConfigQueue, &config,(TickType_t)1000)){
+      printf("received conf\n");
+      return config;
+    }
+  }
+  printf("failed to receive");
+  return NULL;
+}
+
+void sendAck(){
+  mode_config *noData;
+  xQueueSend( modeConfigQueueAck, ( void * ) &noData, ( TickType_t ) 0 );
+}
+
+void updateRates(rates_struct *r, mode_config mode_conf){
+  if(mode_conf.walk)
+    r->walkRateMs   = 1000/(((float)(mode_conf.walkRate)));
+  if(mode_conf.fade)
+    r->fadeRateMs   = 1000/(((float)(mode_conf.fadeRate)));
+  if(mode_conf.cycleConfig)
+    r->configRateMs = 1000/(((float)(mode_conf.configRate)));
+  if(mode_conf.debugRate > 0)
+    r->debugRateMs  = 1000/(((float)(mode_conf.debugRate)));
+  if(mode_conf.music)
+    r->musicRateMs = 1000/(((float)(mode_conf.musicRate)));
 }

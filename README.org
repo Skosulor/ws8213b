@@ -96,7 +96,7 @@ The colors will be smoothed out and rotate once every 15 mS.
 
 void app_main(){
   volatile struct mode_config conf[2];
-  resetModeConfigs(conf, 1,   60 , 10);
+  initModeConfigs(conf, 1,   60 , 10);
   initRmt(conf);
 
   conf[0].smooth    = 30;

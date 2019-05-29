@@ -1,8 +1,8 @@
 #ifndef WS813B_H_
 #define WS813B_H_
-#include "driver/rmt.h"
 #include <complex.h>
-
+#include "driver/rmt.h"
+#include "freertos/queue.h"
 // Engine
 #define UPDATE_FREQ    1000
 #define UPDATE_FREQ_MS 1
@@ -69,19 +69,25 @@ struct led_struct
 
 } led_struct;
 
+typedef struct rates_struct{
+  uint16_t walkRateMs;
+  uint16_t fadeRateMs;
+  uint16_t configRateMs;
+  uint16_t debugRateMs;
+  uint16_t musicRateMs;
+} rates_struct;
 
-struct color_t
+typedef struct color_t
 {
   uint8_t red;
   uint8_t blue;
   uint8_t green;
 } color_t;
 
-struct mode_config
+typedef struct mode_config
 {
   bool     step;
   bool     fade;
-  bool     pulse;
   bool     walk;
   bool     music;
   bool     musicMode1;
@@ -94,7 +100,6 @@ struct mode_config
   uint8_t  fadeWalk;
   uint8_t  fadeWalkRate;
   uint8_t  fadeWalkFreq;
-  uint8_t  pulseRate;
   uint8_t  section_length;
   uint8_t  smooth;
   uint8_t  cycleConfig;
@@ -104,7 +109,7 @@ struct mode_config
   uint16_t musicRate;
   uint16_t debugRate;
 
-  struct color_t *section_colors;
+  color_t *section_colors;
 } mode_config;
 
 static const rmt_item32_t setItem[] =
@@ -139,30 +144,27 @@ static const rmt_item32_t zeroItem[] =
 
 rmt_config_t rmt_conf;
 struct led_struct *leds;
+QueueHandle_t modeConfigQueue;
+QueueHandle_t modeConfigQueueAck;
 
-
-
-void initRmt(struct mode_config *mode_conf, uint8_t ledPin);
-void stepFade(struct led_struct *led, struct mode_config  conf,
-              uint8_t rTarget, uint8_t bTarget, uint8_t gTarget);
-void initColors(struct mode_config *mode_conf, const struct color_t* color);
-void ledEngine(struct mode_config  *mode_conf);
-void outputLeds(struct mode_config  mode_conf);
+void initRmt(mode_config *mode_conf, uint8_t ledPin);
+void initColors(mode_config *mode_conf, const color_t* color);
+void ledEngine(mode_config  *mode_conf);
+void outputLeds(mode_config  mode_conf);
 void setLed(rmt_item32_t *item, uint8_t red, uint8_t blue, uint8_t green);
 void setRed(uint8_t brightness, rmt_item32_t *item);
 void setBlue(uint8_t brightness, rmt_item32_t *item);
 void setGreen(uint8_t brightness, rmt_item32_t *item);
 void setBrightness(uint8_t brightness, uint8_t start, uint8_t stop, rmt_item32_t *item);
 void printDuration0(rmt_item32_t *item);
-void stepForward(struct mode_config  *conf);
-void setLeds(struct mode_config  conf);
-void pulse(struct mode_config  conf);
-void setSectionColors(struct mode_config  conf);
-void fadeWalk(struct mode_config  conf);
-void fadeTo(struct mode_config* conf);
-void fadeZero(struct mode_config *conf);
-void resetModeConfigs(struct mode_config* conf, uint8_t nConfigs, uint16_t nleds, uint8_t nSections);
-void repeatModeZero(struct mode_config *conf);
+void stepForward(mode_config  *conf);
+void setLeds(mode_config  conf);
+void setSectionColors(mode_config  conf);
+void fadeWalk(mode_config  conf);
+void fadeTo(mode_config* conf);
+void fadeZero(mode_config *conf);
+void initModeConfigs(mode_config* conf, uint8_t nConfigs, uint16_t nleds, uint8_t nSections);
+void repeatModeZero(mode_config *conf);
 void welcome();
 void initAdc();
 void fft(float complex x[], float complex y[], int N, int step, int offset);
@@ -170,12 +172,19 @@ void adcErrCtrl(esp_err_t r);
 void startAdc(float complex *out , float complex *copy);
 void fbinToFreq(float complex *in , float *out);
 void scaleAmpRelative(float *power, uint8_t *amplitudeColor, float *color_brightness, float *relativeAmp);
-void music_mode1(uint8_t *amplitudeColor, float *brightness, struct mode_config conf);
-void music_mode2(float *relativeAmp, struct mode_config conf);
+void music_mode1(uint8_t *amplitudeColor, float *brightness, mode_config conf);
+void music_mode2(float *relativeAmp, mode_config conf);
 void resistLedChange(uint8_t r, uint8_t g, uint8_t b, uint16_t led, float resist);
 void resistLowerLedChange(uint8_t r, uint8_t g, uint8_t b, uint16_t led, float resist);
 void variableResistLedChange(uint8_t r, uint8_t g, uint8_t b, uint16_t led, float l_resist, float h_resist);
 void ledEngineTest(void *param);
+int updateConfigFromQueue(mode_config *mode_conf);
+mode_config* requestConfig();
+void sendAck();
+void updateRates(rates_struct *r, mode_config mode_conf);
+
+
+
 
 
 
