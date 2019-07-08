@@ -27,7 +27,7 @@ void initRmt(mode_config *mode_conf, uint8_t ledPin){
   ESP_ERROR_CHECK(rmt_config(&rmt_conf));
   ESP_ERROR_CHECK(rmt_driver_install(rmt_conf.channel, 0, 0));
 
-  leds = malloc(sizeof(led_struct) * mode_conf[0].length);
+  leds = malloc(sizeof(led_struct) * mode_conf[0].nLeds);
 }
 
 void initAdc(){
@@ -46,9 +46,9 @@ void ledEngineTest(void *param){
 
   int i,j;
   mode_config *conf = (mode_config*) param;
-  mode_config configCopy[conf[0].nOfConfigs];
+  mode_config configCopy[conf[0].cycleConfig.nConfigs];
 
-  for(i = 0; i < conf[0].nOfConfigs; i++){
+  for(i = 0; i < conf[0].cycleConfig.nConfigs; i++){
     configCopy[i].section_colors = (malloc(conf[0].section_length * sizeof(color_t)));
     configCopy[i] = conf[i];
 
@@ -100,7 +100,6 @@ void ledEngine(mode_config  *mode_conf){
    r.walkRateMs   = 1000;
    r.fadeRateMs   = 1000;
    r.configRateMs = 1000;
-   r.debugRateMs  = 1000;
    r.musicRateMs  = 1;
 
   // Music mode
@@ -113,8 +112,8 @@ void ledEngine(mode_config  *mode_conf){
   float   freqAmps[N_FREQS];
 
 
-  if(mode_conf[cc].musicMode1 || mode_conf[cc].musicMode2)
-    mode_conf[cc].music = TRUE;
+  if(mode_conf[cc].music.mode1 || mode_conf[cc].music.mode2)
+    mode_conf[cc].music.on = TRUE;
 
   updateRates(&r, mode_conf[cc]);
 
@@ -122,7 +121,6 @@ void ledEngine(mode_config  *mode_conf){
   DPRINT(("walkRateMs %d\n" , r.walkRateMs));
   DPRINT(("r.fadeRateMs %d\n" , r.fadeRateMs));
   DPRINT(("r.configRateMs %d\n" , r.configRateMs));
-  DPRINT(("r.debugRateMs %d\n" , r.debugRateMs));
   DPRINT(("r.musicRateMs %d\n" , r.musicRateMs));
   DPRINT(("----------------------  \n Initial rates in mS \n---------------------- \n\n "));
 
@@ -131,15 +129,15 @@ void ledEngine(mode_config  *mode_conf){
 
   cc = nc;
   pc = nc;
-  nc = mode_conf[0].nOfConfigs;
-  debugTick = mode_conf[0].debugRate + 1;
+  nc = mode_conf[0].cycleConfig.nConfigs;
+  debugTick = DEBUG_RATE + 1;
 
 
     for(i = 0; i < mode_conf[cc].smooth; i++){
       fadeWalk(mode_conf[cc]);
     }
 
-  for(i = 0; i < mode_conf[0].length; i ++){
+  for(i = 0; i < mode_conf[0].nLeds; i ++){
     leds[i].fadeR = leds[i].r;
     leds[i].fadeG = leds[i].g;
     leds[i].fadeB = leds[i].b;
@@ -149,7 +147,7 @@ void ledEngine(mode_config  *mode_conf){
   outputLeds(mode_conf[cc]);
 
 
-  if(mode_conf[cc].music){
+  if(mode_conf[cc].music.on){
     initAdc();
     adcInitiated = TRUE;
   }
@@ -169,12 +167,12 @@ void ledEngine(mode_config  *mode_conf){
     /* DEBUG */
     /* ------*/
 
-    if(LastWakeTime - debugTick > r.debugRateMs){
+    if(LastWakeTime - debugTick > DEBUG_RATE){
       debugTick = LastWakeTime;
 
       DPRINT(("----------------------- Debug info ----------------------- \n"));
       DPRINT(("current conf: %d\nwalk:         %d\nfade:         %d\nsmooth:       %d\nconfigTick:  %d\n",
-              cc, mode_conf[cc].walk, mode_conf[cc].fade, mode_conf[cc].smooth, configTick));
+              cc, mode_conf[cc].walk.on, mode_conf[cc].fade.on, mode_conf[cc].smooth, configTick));
       DPRINT(("----------------------------------------------------------- \n\n "));
 
 
@@ -183,8 +181,8 @@ void ledEngine(mode_config  *mode_conf){
       DPRINT(("---------------------------------------------------------- \n\n"));
 
       FADE_DEBUG(("---------------------- Fade ---------------------- \n"));
-      FADE_DEBUG(("Current conf: %d\n Fade: %d\n fadeRate: %d\n ", cc, mode_conf[cc].fade, mode_conf[cc].fadeRate));
-      FADE_DEBUG(("fadeIterations: %d\n FadeDir: %d\n ", mode_conf[cc].fadeIterations, mode_conf[cc].fadeDir));
+      FADE_DEBUG(("Current conf: %d\n Fade: %d\n fadeRate: %d\n ", cc, mode_conf[cc].fade.on, mode_conf[cc].fade.rate));
+      FADE_DEBUG(("fadeIteration: %d\n FadeDir: %d\n ", mode_conf[cc].fade.iteration, mode_conf[cc].fade.dir));
       FADE_DEBUG(("---------------------- Fade ---------------------- \n"));
 
     }
@@ -193,19 +191,19 @@ void ledEngine(mode_config  *mode_conf){
     /* Config Update */
     /* --------------*/
 
-    if((LastWakeTime - configTick) > r.configRateMs && mode_conf[cc].cycleConfig){
+    if((LastWakeTime - configTick) > r.configRateMs && mode_conf[cc].cycleConfig.on){
       configTick = LastWakeTime;
       pc = cc;
       cc = ((cc + 1) % nc);
 
-      mode_conf[cc].fadeDir = mode_conf[pc].fadeDir;
+      mode_conf[cc].fade.dir = mode_conf[pc].fade.dir;
 
-      if(mode_conf[cc].musicMode1 || mode_conf[cc].musicMode2)
-        mode_conf[cc].music = TRUE;
+      if(mode_conf[cc].music.mode1 || mode_conf[cc].music.mode2)
+        mode_conf[cc].music.on = TRUE;
       else
-        mode_conf[cc].music = FALSE;
+        mode_conf[cc].music.on = FALSE;
 
-      if(mode_conf[cc].music && !adcInitiated){
+      if(mode_conf[cc].music.on && !adcInitiated){
         initAdc();
         adcInitiated = TRUE;
       }
@@ -216,10 +214,10 @@ void ledEngine(mode_config  *mode_conf){
     /* fade mode */
     /* ----------*/
 
-    if((LastWakeTime - fadeTick) >= r.fadeRateMs && mode_conf[cc].fade){
+    if((LastWakeTime - fadeTick) >= r.fadeRateMs && mode_conf[cc].fade.on){
       fadeTick = LastWakeTime;
 
-      if(mode_conf[cc].fadeDir == 0){
+      if(mode_conf[cc].fade.dir == 0){
         bt = esp_timer_get_time();
         fadeTo(&mode_conf[cc]);
         et = esp_timer_get_time();
@@ -235,7 +233,7 @@ void ledEngine(mode_config  *mode_conf){
     /* walk mode */
     /* ----------*/
 
-    if((LastWakeTime - walkTick) >= r.walkRateMs && mode_conf[cc].walk){
+    if((LastWakeTime - walkTick) >= r.walkRateMs && mode_conf[cc].walk.on){
       walkTick = LastWakeTime;
       stepForward(&mode_conf[cc]);
       ledsUpdated = TRUE;
@@ -246,7 +244,7 @@ void ledEngine(mode_config  *mode_conf){
     /* ---------------*/
 
     // TODO change behaviour of this one
-    if(fadeWalk_t >= mode_conf[cc].fadeWalkRate && mode_conf[cc].fadeWalk){
+    if(fadeWalk_t >= mode_conf[cc].fadeWalk.rate && mode_conf[cc].fadeWalk.on){
       fadeWalk_t = 0;
       fadeWalk(mode_conf[cc]);
       setLeds(mode_conf[cc]);
@@ -257,17 +255,17 @@ void ledEngine(mode_config  *mode_conf){
     /*    FFT    */
     /* ----------*/
 
-    if((LastWakeTime - musicTick) >= r.musicRateMs && mode_conf[cc].music){
+    if((LastWakeTime - musicTick) >= r.musicRateMs && mode_conf[cc].music.on){
       musicTick = LastWakeTime;
       startAdc(samples, copy);
       fft(samples, copy, N_SAMPLES, 1, 0);
       fbinToFreq(samples, freqAmps);
       scaleAmpRelative(freqAmps, musicAmplitudeColor, musicBrightness, musicRelativeAmp);
 
-      if(mode_conf[cc].musicMode1)
+      if(mode_conf[cc].music.mode1)
         music_mode1(musicAmplitudeColor, musicBrightness, mode_conf[cc]);
 
-      if(mode_conf[cc].musicMode2)
+      if(mode_conf[cc].music.mode2)
         music_mode2(musicRelativeAmp, mode_conf[cc]);
 
 
@@ -444,7 +442,7 @@ void music_mode2(float *relativeAmp, mode_config conf){
   else if(b < g && b > r)
     b = b*mid;
 
-  for(i = 0; i <  conf.length; i ++){
+  for(i = 0; i <  conf.nLeds; i ++){
     variableResistLedChange(r, g, b, i, L_RESISTANCE, H_RESISTANCE);
   }
 
@@ -458,7 +456,7 @@ void music_mode1(uint8_t *amplitudeColor, float *brightness, mode_config conf){
   uint8_t r,g,b;
 
   for(i = 0; i < N_FREQS; i ++){
-    for(j = i*(conf.length/(N_FREQS)); j <  (i+1)*(conf.length/(N_FREQS)); j ++){
+    for(j = i*(conf.nLeds/(N_FREQS)); j <  (i+1)*(conf.nLeds/(N_FREQS)); j ++){
 
       r = (int)((float)music_colors[amplitudeColor[i]].red   * brightness[i]);
       g = (int)((float)music_colors[amplitudeColor[i]].green * brightness[i]);
@@ -605,28 +603,26 @@ void initModeConfigs(mode_config *conf, uint8_t nConfigs, uint16_t nleds, uint8_
   int i;
   for(i = 0; i < nConfigs; i ++){
 
-    conf[i].length         = nleds;
-    conf[i].nOfConfigs     = nConfigs;
-    conf[i].section_length = nSections;
-    conf[i].section_offset = 0;
-    conf[i].fadeIterations = 0; // TODO rename this to something relevant
-    conf[i].fadeWalkFreq   = 0;
-    conf[i].fadeWalkRate   = 0;
-    conf[i].cycleConfig    = 0;
-    conf[i].configRate     = 0;
-    conf[i].debugRate      = 500;
-    conf[i].musicRate      = 0;
-    conf[i].walkRate       = 0;
-    conf[i].fadeRate       = 0;
-    conf[i].fadeWalk       = 0;
-    conf[i].fadeDir        = 0;
-    conf[i].smooth         = 0;
-    conf[i].step           = FALSE;
-    conf[i].fade           = FALSE;
-    conf[i].walk           = FALSE;
-    conf[i].music          = FALSE;
-    conf[i].musicMode1     = FALSE;
-    conf[i].musicMode2     = FALSE;
+    conf[i].nLeds              = nleds;
+    conf[i].cycleConfig.nConfigs     = nConfigs;
+    conf[i].section_length     = nSections;
+    conf[i].section_offset     = 0;
+    conf[i].fade.iteration     = 0; // TODO rename this to something relevant
+    conf[i].fadeWalk.freq      = 0;
+    conf[i].fadeWalk.rate      = 0;
+    conf[i].cycleConfig.on     = 0;
+    conf[i].cycleConfig.rate   = 0;
+    conf[i].music.rate         = 0;
+    conf[i].walk.rate          = 0;
+    conf[i].fade.rate          = 0;
+    conf[i].fadeWalk.on        = 0;
+    conf[i].fade.dir           = 0;
+    conf[i].smooth             = 0;
+    conf[i].fade.on            = FALSE;
+    conf[i].walk.on            = FALSE;
+    conf[i].music.on           = FALSE;
+    conf[i].music.mode1        = FALSE;
+    conf[i].music.mode2        = FALSE;
 
     conf[i].section_colors = (malloc(conf[0].section_length * sizeof(color_t)));
   }
@@ -634,7 +630,7 @@ void initModeConfigs(mode_config *conf, uint8_t nConfigs, uint16_t nleds, uint8_
 
 void repeatModeZero(mode_config *conf){
   int i;
-  for(i = 1; i < conf[0].nOfConfigs; i++)
+  for(i = 1; i < conf[0].cycleConfig.nConfigs; i++)
     conf[i] = conf[0];
 }
 
@@ -647,11 +643,11 @@ void initColors(mode_config  *mode_conf, const color_t *color){
 
 void fadeWalk( mode_config  conf){
   int i;
-  for(i = 0; i < conf.length; i++){
+  for(i = 0; i < conf.nLeds; i++){
     /* printf("Red: %d, i: %d\n", leds[i].r, i); */
-    leds[i].r = leds[i].r - ((leds[i].r - leds[(i+1)%conf.length].r)/(3));
-    leds[i].g = leds[i].g - ((leds[i].g - leds[(i+1)%conf.length].g)/(3));
-    leds[i].b = leds[i].b - ((leds[i].b - leds[(i+1)%conf.length].b)/(3));
+    leds[i].r = leds[i].r - ((leds[i].r - leds[(i+1)%conf.nLeds].r)/(3));
+    leds[i].g = leds[i].g - ((leds[i].g - leds[(i+1)%conf.nLeds].g)/(3));
+    leds[i].b = leds[i].b - ((leds[i].b - leds[(i+1)%conf.nLeds].b)/(3));
     /* printf("Red: %d, i: %d\n", leds[i].r, i); */
   }
 }
@@ -659,16 +655,16 @@ void fadeWalk( mode_config  conf){
 void fadeZero(mode_config *conf){
   int i;
   static uint8_t it = 0;
-  for(i = 0; i < conf->length; i++){
+  for(i = 0; i < conf->nLeds; i++){
     // TODO define a variable for 128
     leds[i].r = leds[i].r - ((leds[i].r - 0)/(64 - it));
     leds[i].g = leds[i].g - ((leds[i].g - 0)/(64 - it));
     leds[i].b = leds[i].b - ((leds[i].b - 0)/(64 - it));
   }
   it++;
-  if(it == conf->fadeIterations){
+  if(it == conf->fade.iteration){
     it = 0;
-    conf->fadeDir = 0;
+    conf->fade.dir = 0;
   }
 }
 
@@ -676,7 +672,7 @@ void fadeTo(mode_config *conf){
   int i;
   static uint8_t it = 0;
 
-  for(i = 0; i < conf->length; i++){
+  for(i = 0; i < conf->nLeds; i++){
     // TODO define a variable for 128
     leds[i].r = leds[i].r - ((leds[i].r - leds[i].fadeR)/(64 - it));
     leds[i].g = leds[i].g - ((leds[i].g - leds[i].fadeG)/(64 - it));
@@ -684,16 +680,16 @@ void fadeTo(mode_config *conf){
   }
 
   it++;
-  if(it == conf->fadeIterations){
+  if(it == conf->fade.iteration){
     it = 0;
-    conf->fadeDir = 1;
+    conf->fade.dir = 1;
   }
 }
 
 void setSectionColors(mode_config  conf){
   int i,j;
   for(i = 0; i < conf.section_length; i ++){
-    for(j = i*(conf.length/conf.section_length); j <  (i+1)*(conf.length/conf.section_length); j ++){
+    for(j = i*(conf.nLeds/conf.section_length); j <  (i+1)*(conf.nLeds/conf.section_length); j ++){
       leds[j].r = conf.section_colors[i].red;
       leds[j].g = conf.section_colors[i].green;
       leds[j].b = conf.section_colors[i].blue;
@@ -703,7 +699,7 @@ void setSectionColors(mode_config  conf){
 
 void outputLeds(mode_config  mode_conf){
   int i;
-  for(i = 0; i < mode_conf.length; i ++){
+  for(i = 0; i < mode_conf.nLeds; i ++){
     ESP_ERROR_CHECK(rmt_write_items(rmt_conf.channel, leds[i].item, 24, 1));
   }
 
@@ -713,7 +709,7 @@ void outputLeds(mode_config  mode_conf){
 
 void setLeds(mode_config  conf){
   int i;
-  for(i = 0; i < conf.length; i ++){
+  for(i = 0; i < conf.nLeds; i ++){
     setLed(leds[i].item, leds[i].r, leds[i].b, leds[i].g);
   }
 }
@@ -760,12 +756,12 @@ void stepForward(mode_config  *conf){
   int i;
   struct led_struct temp = leds[0];
   /* printf("led one red = %d\n", leds[0].r); */
-  for(i = 0; i < conf->length; i ++){
-    leds[i] = leds[((i+1) % conf->length)];
+  for(i = 0; i < conf->nLeds; i ++){
+    leds[i] = leds[((i+1) % conf->nLeds)];
   }
-  leds[conf->length - 1] = temp;
+  leds[conf->nLeds - 1] = temp;
   conf->section_offset -= 1;
-  if(conf->section_offset <= -(int16_t)conf->length)
+  if(conf->section_offset <= -(int16_t)conf->nLeds)
     conf->section_offset = 0;
 }
 
@@ -830,14 +826,12 @@ void sendAck(){
 }
 
 void updateRates(rates_struct *r, mode_config mode_conf){
-  if(mode_conf.walk)
-    r->walkRateMs   = 1000/(((float)(mode_conf.walkRate)));
-  if(mode_conf.fade)
-    r->fadeRateMs   = 1000/(((float)(mode_conf.fadeRate)));
-  if(mode_conf.cycleConfig)
-    r->configRateMs = 1000/(((float)(mode_conf.configRate)));
-  if(mode_conf.debugRate > 0)
-    r->debugRateMs  = 1000/(((float)(mode_conf.debugRate)));
-  if(mode_conf.music)
-    r->musicRateMs = 1000/(((float)(mode_conf.musicRate)));
+  if(mode_conf.walk.on)
+    r->walkRateMs   = 1000/(((float)(mode_conf.walk.rate)));
+  if(mode_conf.fade.on)
+    r->fadeRateMs   = 1000/(((float)(mode_conf.fade.rate)));
+  if(mode_conf.cycleConfig.on)
+    r->configRateMs = 1000/(((float)(mode_conf.cycleConfig.rate)));
+  if(mode_conf.music.on)
+    r->musicRateMs = 1000/(((float)(mode_conf.music.rate)));
 }

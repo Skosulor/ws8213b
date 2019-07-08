@@ -5,7 +5,7 @@
 #include "colors.h"
 #include "freertos/queue.h"
 
-#define N_CONF     2
+#define N_CONF     4
 #define N_LEDS     60
 #define N_SECTIONS 10
 #define LED_PIN    4
@@ -21,49 +21,48 @@ void app_main(){
   initModeConfigs(conf, N_CONF, N_LEDS, N_SECTIONS);
   initRmt(conf, LED_PIN);
 
-  conf[0].walk        = TRUE;
-  conf[0].fade        = FALSE;
-  conf[0].fadeWalk    = FALSE; //TODO change the func
-  conf[0].cycleConfig = TRUE;
-  conf[0].musicMode1  = FALSE;
-  conf[0].musicMode2  = FALSE;
+  conf[0].walk.on        = TRUE;
+  conf[0].fade.on        = FALSE;
+  conf[0].fadeWalk.on    = FALSE; //TODO change the func
+  conf[0].cycleConfig.on = TRUE;
+  conf[0].music.mode1    = FALSE;
+  conf[0].music.mode2    = FALSE;
 
-  // TODO handle fade in cycleConfig 
-  conf[0].musicRate      = 1000;
-  conf[0].smooth         = 10;
-  conf[0].fadeWalkRate   = 0; //TODO change the func
-  conf[0].walkRate       = 50;
-  conf[0].debugRate      = 1;
-  conf[0].configRate     = 0.5;
-  conf[0].fadeIterations = 63;
-  conf[0].fadeRate       = 40;
-  conf[0].fadeDir        = 1;
+  // TODO handle fade in cycleConfig
+  conf[0].music.rate       = 1000;
+  conf[0].smooth           = 10;
+  conf[0].fadeWalk.rate    = 0; //TODO change the func
+  conf[0].walk.rate        = 50;
+  conf[0].cycleConfig.rate = 0.5;
+  conf[0].fade.iteration   = 63;
+  conf[0].fade.rate        = 40;
+  conf[0].fade.dir         = 1;
 
   repeatModeZero(conf);
 
-  conf[1].walk        = TRUE;
-  conf[1].fade        = FALSE;
-  conf[1].fadeWalk    = FALSE;
-  conf[1].musicMode1  = FALSE;
-  conf[1].musicMode2  = FALSE;
+  conf[1].walk.on     = FALSE;
+  conf[1].fade.on     = TRUE;
+  conf[1].fadeWalk.on = FALSE;
+  conf[1].music.mode1 = FALSE;
+  conf[1].music.mode2 = FALSE;
 
-  /* conf[2].walk        = FALSE; */
-  /* conf[2].fade        = FALSE; */
-  /* conf[2].fadeWalk    = FALSE; */
-  /* conf[2].musicMode1  = TRUE; */
-  /* conf[2].musicMode2  = FALSE; */
+  conf[2].walk.on     = FALSE;
+  conf[2].fade.on     = TRUE;
+  conf[2].fadeWalk.on = FALSE;
+  conf[2].music.mode1 = FALSE;
+  conf[2].music.mode2 = FALSE;
 
-  /* conf[3].walk        = FALSE; */
-  /* conf[3].fade        = FALSE; */
-  /* conf[3].fadeWalk    = FALSE; */
-  /* conf[3].musicMode1  = FALSE; */
-  /* conf[3].musicMode2  = TRUE; */
+  conf[3].walk.on     = FALSE;
+  conf[3].fade.on     = TRUE;
+  conf[3].fadeWalk.on = FALSE;
+  conf[3].music.mode1 = FALSE;
+  conf[3].music.mode2 = FALSE;
 
-  /* conf[4].walk        = TRUE; */
-  /* conf[4].fade        = TRUE; */
-  /* conf[4].fadeWalk    = FALSE; */
-  /* conf[4].musicMode1  = FALSE; */
-  /* conf[4].musicMode2  = FALSE; */
+  /* conf[4].walk.on        = TRUE; */
+  /* conf[4].fade.on        = TRUE; */
+  /* conf[4].fadeWalk.on    = FALSE; */
+  /* conf[4].music.mode1  = FALSE; */
+  /* conf[4].music.mode2  = FALSE; */
 
 
   // TODO add to README // TODO rename and ability to choose specific config
@@ -86,10 +85,12 @@ void app_main(){
 
 void queueTestTask(void *param){
   mode_config *config;
-    vTaskDelay(1000);
-    config = requestConfig();
-    config[0].walkRate = 5;
-    config[1].walkRate = 10;
+    vTaskDelay(10000);
+    config              = requestConfig();
+    config[1].walk.on   = TRUE;
+    config[2].walk.on   = TRUE;
+    config[1].walk.rate = 5;
+    config[2].walk.rate = 10;
     sendAck();
     vTaskDelete(NULL);
 }

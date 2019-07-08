@@ -32,6 +32,7 @@
 #define DEBUG   0
 #define W_DEBUG 0
 #define F_DEBUG 0
+#define DEBUG_RATE 1000
 
 #if W_DEBUG > 0
 # define WALK_DEBUG(x) printf x
@@ -73,7 +74,6 @@ typedef struct rates_struct{
   uint16_t walkRateMs;
   uint16_t fadeRateMs;
   uint16_t configRateMs;
-  uint16_t debugRateMs;
   uint16_t musicRateMs;
 } rates_struct;
 
@@ -84,32 +84,51 @@ typedef struct color_t
   uint8_t green;
 } color_t;
 
+typedef struct walk_t{
+  bool     on;
+  uint16_t rate;
+} walk_t;
+
+typedef struct fade_t{
+  bool     on;
+  uint16_t rate;
+  uint8_t  iteration;
+  uint8_t  dir;
+} fade_t;
+
+typedef struct cycle_config_t{  // TODO
+  bool    on;
+  float   rate;
+  uint8_t nConfigs;
+} cycle_config_t;
+
+typedef struct music_t{
+  bool     on;
+  bool     mode1;
+  bool     mode2;
+  uint16_t rate;
+} music_t;
+
+typedef struct fadeWalk_t{
+  uint8_t  on;
+  uint8_t  rate;
+  uint8_t  freq;
+} fadeWalk_t;
+
 typedef struct mode_config
 {
-  bool     step;
-  bool     fade;
-  bool     walk;
-  bool     music;
-  bool     musicMode1;
-  bool     musicMode2;
-  float    configRate;
-  int16_t  section_offset;
-  uint8_t  fadeRate;
-  uint8_t  fadeIterations;      // TODO rename this to something more relevant
-  uint8_t  fadeDir;
-  uint8_t  fadeWalk;
-  uint8_t  fadeWalkRate;
-  uint8_t  fadeWalkFreq;
-  uint8_t  section_length;
-  uint8_t  smooth;
-  uint8_t  cycleConfig;
-  uint8_t  nOfConfigs;
-  uint32_t length;
-  uint16_t walkRate;
-  uint16_t musicRate;
-  uint16_t debugRate;
+  walk_t          walk;
+  fade_t          fade;
+  music_t         music;
+  fadeWalk_t      fadeWalk;
+  cycle_config_t  cycleConfig;
 
-  color_t *section_colors;
+  int16_t         section_offset;
+  uint8_t         section_length;
+  uint8_t         smooth;
+  uint32_t        nLeds;
+  color_t        *section_colors;
+
 } mode_config;
 
 static const rmt_item32_t setItem[] =
@@ -159,14 +178,15 @@ void setBrightness(uint8_t brightness, uint8_t start, uint8_t stop, rmt_item32_t
 void printDuration0(rmt_item32_t *item);
 void stepForward(mode_config  *conf);
 void setLeds(mode_config  conf);
-void setSectionColors(mode_config  conf);
 void fadeWalk(mode_config  conf);
 void fadeTo(mode_config* conf);
+void fadeZero(mode_config *conf);
 void fadeZero(mode_config *conf);
 void initModeConfigs(mode_config* conf, uint8_t nConfigs, uint16_t nleds, uint8_t nSections);
 void repeatModeZero(mode_config *conf);
 void welcome();
 void initAdc();
+void setSectionColors(mode_config  conf);
 void fft(float complex x[], float complex y[], int N, int step, int offset);
 void adcErrCtrl(esp_err_t r);
 void startAdc(float complex *out , float complex *copy);
