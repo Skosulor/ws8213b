@@ -21,22 +21,25 @@ void app_main(){
   initModeConfigs(conf, N_CONF, N_LEDS, N_SECTIONS);
   initRmt(conf, LED_PIN);
 
-  conf[0].walk.on        = TRUE;
-  conf[0].fade.on        = FALSE;
-  conf[0].fadeWalk.on    = FALSE; //TODO change the func
-  conf[0].cycleConfig.on = TRUE;
-  conf[0].music.mode1    = FALSE;
-  conf[0].music.mode2    = FALSE;
+  conf[0].walk.on                 = FALSE;
+  conf[0].mirror.on               = TRUE;
+  conf[0].fade.on                 = FALSE;
+  conf[0].fadeWalk.on             = FALSE; //TODO change the func
+  conf[0].cycleConfig.on          = FALSE;
+  conf[0].music.mode1             = TRUE;
+  conf[0].music.mode2             = FALSE;
+  conf[0].mirror.sharedReflection = TRUE;
 
   // TODO handle fade in cycleConfig
-  conf[0].music.rate       = 1000;
-  conf[0].smooth           = 10;
-  conf[0].fadeWalk.rate    = 0; //TODO change the func
-  conf[0].walk.rate        = 50;
-  conf[0].cycleConfig.rate = 0.5;
-  conf[0].fade.iteration   = 63;
-  conf[0].fade.rate        = 40;
-  conf[0].fade.dir         = 1;
+  conf[0].music.rate              = 1000;
+  conf[0].mirror.mirrors          = 1;
+  conf[0].smooth                  = 10;
+  conf[0].fadeWalk.rate           = 10; //TODO change the func
+  conf[0].walk.rate               = 25;
+  conf[0].cycleConfig.rate        = 0.5;
+  conf[0].fade.iteration          = 63;
+  conf[0].fade.rate               = 40;
+  conf[0].fade.dir                = 1;
 
   repeatModeZero(conf);
 
@@ -74,8 +77,8 @@ void app_main(){
   TaskHandle_t xHandle = NULL;
   portBASE_TYPE x;
 
-  x = xTaskCreate(ledEngineTest, "engine", 7000, (void *)conf,  2, xHandle);
-  x = xTaskCreate(queueTestTask, "queueTEst", 5000, NULL,  3, xHandle);
+  x = xTaskCreate(ledEngineTask, "engine", 7000, (void *)conf,  2, xHandle);
+  /* x = xTaskCreate(queueTestTask, "queueTEst", 5000, NULL,  3, xHandle); */
   printf("%d\n", x);
   vTaskDelay(1000);
   vTaskDelete(NULL);

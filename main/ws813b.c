@@ -42,7 +42,7 @@ void initAdc(){
 
 }
 
-void ledEngineTest(void *param){
+void ledEngineTask(void *param){
 
   int i,j;
   mode_config *conf = (mode_config*) param;
@@ -236,6 +236,7 @@ void ledEngine(mode_config  *mode_conf){
     if((LastWakeTime - walkTick) >= r.walkRateMs && mode_conf[cc].walk.on){
       walkTick = LastWakeTime;
       stepForward(&mode_conf[cc]);
+      setLeds(mode_conf[cc]);
       ledsUpdated = TRUE;
     }
 
@@ -283,6 +284,11 @@ void ledEngine(mode_config  *mode_conf){
 
     if(ledsUpdated == TRUE){
       ledsUpdated = FALSE;
+
+      if(mode_conf[cc].mirror.on){
+        mirror(mode_conf[cc]);
+        /* setLeds(mode_conf[cc]); */
+      }
 
       bt = esp_timer_get_time();
       outputLeds(mode_conf[cc]);
@@ -652,6 +658,37 @@ void fadeWalk( mode_config  conf){
   }
 }
 
+void mirror(mode_config conf){
+  int i, j;
+  int mirrorSize, stepSize, source, target,target2;
+  stepSize = (conf.nLeds/conf.mirror.mirrors);
+  mirrorSize = stepSize/2;
+
+  for(i = 0; i < conf.mirror.mirrors; i++){
+    target = (i+1)*stepSize;
+    for(j = i*stepSize; j < i*stepSize + mirrorSize; j++){
+      source = j;
+      target--;
+      copyRmtItem(source, target);
+
+      if(conf.mirror.sharedReflection && stepSize*(i+1)+(j-i*stepSize) < conf.nLeds)
+
+        {
+          target2 = stepSize*(i+1)+(j-i*stepSize);
+          copyRmtItem(j, target2);
+        }
+    }
+  }
+}
+
+void copyRmtItem(uint16_t source, uint16_t target){
+  int i;
+  for(i = 0; i < ITEMS_PER_LED; i ++){
+    leds[target].item[i] = leds[source].item[i];
+  }
+}
+
+
 void fadeZero(mode_config *conf){
   int i;
   static uint8_t it = 0;
@@ -835,3 +872,4 @@ void updateRates(rates_struct *r, mode_config mode_conf){
   if(mode_conf.music.on)
     r->musicRateMs = 1000/(((float)(mode_conf.music.rate)));
 }
+

@@ -19,6 +19,9 @@
 #define LOW_HZ_OFFSET  0.8
 #define N_AVG_VAL      10
 
+//Number of items per led
+#define ITEMS_PER_LED 24
+
 // resist led change
 #define M_RESISTANCE 5
 #define L_RESISTANCE 8 // 6
@@ -59,7 +62,7 @@
 
 struct led_struct
 {
-  rmt_item32_t item[24];
+  rmt_item32_t item[ITEMS_PER_LED];
   uint8_t r;
   uint8_t g;
   uint8_t b;
@@ -96,7 +99,7 @@ typedef struct fade_t{
   uint8_t  dir;
 } fade_t;
 
-typedef struct cycle_config_t{  // TODO
+typedef struct cycle_config_t{
   bool    on;
   float   rate;
   uint8_t nConfigs;
@@ -109,17 +112,25 @@ typedef struct music_t{
   uint16_t rate;
 } music_t;
 
-typedef struct fadeWalk_t{
+typedef struct fadeWalk_t{ // TODO: mode needs an overhaul
   uint8_t  on;
   uint8_t  rate;
   uint8_t  freq;
 } fadeWalk_t;
+
+typedef struct mirror_t{
+  bool    on;
+  uint8_t mirrors;
+  bool    sharedReflection;
+  /* bool fadeOut;  */
+} mirror_t;
 
 typedef struct mode_config
 {
   walk_t          walk;
   fade_t          fade;
   music_t         music;
+  mirror_t        mirror;
   fadeWalk_t      fadeWalk;
   cycle_config_t  cycleConfig;
 
@@ -197,22 +208,12 @@ void music_mode2(float *relativeAmp, mode_config conf);
 void resistLedChange(uint8_t r, uint8_t g, uint8_t b, uint16_t led, float resist);
 void resistLowerLedChange(uint8_t r, uint8_t g, uint8_t b, uint16_t led, float resist);
 void variableResistLedChange(uint8_t r, uint8_t g, uint8_t b, uint16_t led, float l_resist, float h_resist);
-void ledEngineTest(void *param);
+void ledEngineTask(void *param);
 int updateConfigFromQueue(mode_config *mode_conf);
 mode_config* requestConfig();
 void sendAck();
 void updateRates(rates_struct *r, mode_config mode_conf);
-
-
-
-
-
-
-
-
-
-
-
-
+void mirror(mode_config conf);
+void copyRmtItem(uint16_t source, uint16_t target);
 
 #endif
