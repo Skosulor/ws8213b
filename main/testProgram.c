@@ -5,7 +5,7 @@
 #include "colors.h"
 #include "freertos/queue.h"
 
-#define N_CONF     4
+#define N_CONF     2
 #define N_LEDS     60
 #define N_SECTIONS 10
 #define LED_PIN    4
@@ -21,18 +21,19 @@ void app_main(){
   initModeConfigs(conf, N_CONF, N_LEDS, N_SECTIONS);
   initRmt(conf, LED_PIN);
 
-  conf[0].walk.on                 = FALSE;
+  conf[0].walk.on                 = TRUE;
   conf[0].mirror.on               = TRUE;
   conf[0].fade.on                 = FALSE;
   conf[0].fadeWalk.on             = FALSE; //TODO change the func
-  conf[0].cycleConfig.on          = FALSE;
-  conf[0].music.mode1             = TRUE;
+  conf[0].cycleConfig.on          = TRUE;
+  conf[0].music.mode1             = FALSE;
   conf[0].music.mode2             = FALSE;
   conf[0].mirror.sharedReflection = TRUE;
+  conf[0].walk.dir                = TRUE;
 
   // TODO handle fade in cycleConfig
   conf[0].music.rate              = 1000;
-  conf[0].mirror.mirrors          = 1;
+  conf[0].mirror.mirrors          = 2;
   conf[0].smooth                  = 10;
   conf[0].fadeWalk.rate           = 10; //TODO change the func
   conf[0].walk.rate               = 25;
@@ -43,23 +44,25 @@ void app_main(){
 
   repeatModeZero(conf);
 
-  conf[1].walk.on     = FALSE;
-  conf[1].fade.on     = TRUE;
-  conf[1].fadeWalk.on = FALSE;
-  conf[1].music.mode1 = FALSE;
-  conf[1].music.mode2 = FALSE;
+  conf[1].walk.on        = TRUE;
+  conf[1].fade.on        = FALSE;
+  conf[1].walk.dir       = FALSE;
+  conf[1].fadeWalk.on    = FALSE;
+  conf[1].music.mode1    = FALSE;
+  conf[1].music.mode2    = FALSE;
+  conf[1].mirror.mirrors = 3;
 
-  conf[2].walk.on     = FALSE;
-  conf[2].fade.on     = TRUE;
-  conf[2].fadeWalk.on = FALSE;
-  conf[2].music.mode1 = FALSE;
-  conf[2].music.mode2 = FALSE;
+  /* conf[2].walk.on     = FALSE; */
+  /* conf[2].fade.on     = TRUE; */
+  /* conf[2].fadeWalk.on = FALSE; */
+  /* conf[2].music.mode1 = FALSE; */
+  /* conf[2].music.mode2 = FALSE; */
 
-  conf[3].walk.on     = FALSE;
-  conf[3].fade.on     = TRUE;
-  conf[3].fadeWalk.on = FALSE;
-  conf[3].music.mode1 = FALSE;
-  conf[3].music.mode2 = FALSE;
+  /* conf[3].walk.on     = FALSE; */
+  /* conf[3].fade.on     = TRUE; */
+  /* conf[3].fadeWalk.on = FALSE; */
+  /* conf[3].music.mode1 = FALSE; */
+  /* conf[3].music.mode2 = FALSE; */
 
   /* conf[4].walk.on        = TRUE; */
   /* conf[4].fade.on        = TRUE; */

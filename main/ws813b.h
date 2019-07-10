@@ -89,6 +89,7 @@ typedef struct color_t
 
 typedef struct walk_t{
   bool     on;
+  bool     dir;
   uint16_t rate;
 } walk_t;
 
@@ -188,6 +189,7 @@ void setGreen(uint8_t brightness, rmt_item32_t *item);
 void setBrightness(uint8_t brightness, uint8_t start, uint8_t stop, rmt_item32_t *item);
 void printDuration0(rmt_item32_t *item);
 void stepForward(mode_config  *conf);
+void stepBackward(mode_config *conf);
 void setLeds(mode_config  conf);
 void fadeWalk(mode_config  conf);
 void fadeTo(mode_config* conf);

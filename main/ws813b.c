@@ -235,7 +235,10 @@ void ledEngine(mode_config  *mode_conf){
 
     if((LastWakeTime - walkTick) >= r.walkRateMs && mode_conf[cc].walk.on){
       walkTick = LastWakeTime;
-      stepForward(&mode_conf[cc]);
+      if(mode_conf[cc].walk.dir)
+        stepForward(&mode_conf[cc]);
+      else
+        stepBackward(&mode_conf[cc]);
       setLeds(mode_conf[cc]);
       ledsUpdated = TRUE;
     }
@@ -609,26 +612,36 @@ void initModeConfigs(mode_config *conf, uint8_t nConfigs, uint16_t nleds, uint8_
   int i;
   for(i = 0; i < nConfigs; i ++){
 
-    conf[i].nLeds              = nleds;
-    conf[i].cycleConfig.nConfigs     = nConfigs;
-    conf[i].section_length     = nSections;
-    conf[i].section_offset     = 0;
-    conf[i].fade.iteration     = 0; // TODO rename this to something relevant
-    conf[i].fadeWalk.freq      = 0;
-    conf[i].fadeWalk.rate      = 0;
-    conf[i].cycleConfig.on     = 0;
-    conf[i].cycleConfig.rate   = 0;
-    conf[i].music.rate         = 0;
-    conf[i].walk.rate          = 0;
-    conf[i].fade.rate          = 0;
-    conf[i].fadeWalk.on        = 0;
-    conf[i].fade.dir           = 0;
-    conf[i].smooth             = 0;
-    conf[i].fade.on            = FALSE;
-    conf[i].walk.on            = FALSE;
-    conf[i].music.on           = FALSE;
-    conf[i].music.mode1        = FALSE;
-    conf[i].music.mode2        = FALSE;
+    conf[i].nLeds                   = nleds;
+    conf[i].section_length          = nSections;
+    conf[i].section_offset          = 0;
+    conf[i].smooth                  = 0;
+    // CycleConfig
+    conf[i].cycleConfig.nConfigs    = nConfigs;
+    conf[i].cycleConfig.on          = 0;
+    conf[i].cycleConfig.rate        = 0;
+    // FadeWalk
+    conf[i].fadeWalk.on             = 0;
+    conf[i].fadeWalk.freq           = 0;
+    conf[i].fadeWalk.rate           = 0;
+    // Fade
+    conf[i].fade.iteration          = 0; // TODO rename this to something relevant
+    conf[i].fade.rate               = 0;
+    conf[i].fade.on                 = FALSE;
+    conf[i].fade.dir                = 0;
+    // Walk
+    conf[i].walk.on                 = FALSE;
+    conf[i].walk.rate               = 0;
+    conf[i].walk.dir                = FALSE;
+    // Mirror
+    conf[i].mirror.on               = FALSE;
+    conf[i].mirror.mirrors          = 1;
+    conf[i].mirror.sharedReflection = FALSE;
+    // Music
+    conf[i].music.rate              = 0;
+    conf[i].music.on                = FALSE;
+    conf[i].music.mode1             = FALSE;
+    conf[i].music.mode2             = FALSE;
 
     conf[i].section_colors = (malloc(conf[0].section_length * sizeof(color_t)));
   }
@@ -790,6 +803,18 @@ void printDuration0(rmt_item32_t *item){
 }
 
 void stepForward(mode_config  *conf){
+  int i;
+  struct led_struct temp = leds[conf->nLeds-1];
+  /* printf("led one red = %d\n", leds[0].r); */
+  for(i = conf->nLeds-1; i < conf->nLeds; i --){
+    leds[i] = leds[((i-1) % conf->nLeds)];
+  }
+  leds[0] = temp;
+  conf->section_offset += 1;
+  if(conf->section_offset <= -(int16_t)conf->nLeds)
+    conf->section_offset = 0;
+}
+void stepBackward(mode_config *conf){
   int i;
   struct led_struct temp = leds[0];
   /* printf("led one red = %d\n", leds[0].r); */
