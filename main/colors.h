@@ -7,6 +7,11 @@
 /* feel free to add more and */
 /* make a pull request */
 
+static const color_t no_color = {
+  .blue = 0,
+  .green = 0,
+  .red = 0,
+};
 
 static const color_t color_red = {
   .red = 0,
@@ -109,6 +114,7 @@ static const color_t music_colors[N_FFT_COLORS] = {
     .green = 30,
     .blue = 30,
   }};
+
 
 static const color_t testColors[10] = {
 

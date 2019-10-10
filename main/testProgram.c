@@ -5,9 +5,9 @@
 #include "colors.h"
 #include "freertos/queue.h"
 
-#define N_CONF     2
-#define N_LEDS     60
-#define N_SECTIONS 10
+#define N_CONF     5
+#define N_LEDS     120
+#define N_SECTIONS 1
 #define LED_PIN    4
 
 void queueTestTask(void *param);
@@ -21,36 +21,40 @@ void app_main(){
   initModeConfigs(conf, N_CONF, N_LEDS, N_SECTIONS);
   initRmt(conf, LED_PIN);
 
-  conf[0].walk.on                 = TRUE;
-  conf[0].mirror.on               = TRUE;
+  conf[0].walk.on                 = FALSE;
+  conf[0].mirror.on               = FALSE;
   conf[0].fade.on                 = FALSE;
   conf[0].fadeWalk.on             = FALSE; //TODO change the func
-  conf[0].cycleConfig.on          = TRUE;
+  conf[0].cycleConfig.on          = FALSE;
   conf[0].music.mode1             = FALSE;
   conf[0].music.mode2             = FALSE;
   conf[0].mirror.sharedReflection = TRUE;
-  conf[0].walk.dir                = TRUE;
+  conf[0].walk.dir                = FALSE;
+  conf[0].simGrav.on              = TRUE;
 
   // TODO handle fade in cycleConfig
-  conf[0].music.rate              = 1000;
-  conf[0].mirror.mirrors          = 2;
-  conf[0].smooth                  = 10;
-  conf[0].fadeWalk.rate           = 10; //TODO change the func
-  conf[0].walk.rate               = 25;
-  conf[0].cycleConfig.rate        = 0.5;
-  conf[0].fade.iteration          = 63;
-  conf[0].fade.rate               = 40;
-  conf[0].fade.dir                = 1;
+  conf[0].music.rate           = 1000;
+  conf[0].mirror.mirrors       = 2;
+  conf[0].smooth               = 10;
+  conf[0].fadeWalk.rate        = 10; //TODO change the func
+  conf[0].walk.rate            = 50;
+  conf[0].cycleConfig.rate     = 0.5;
+  conf[0].fade.iteration       = 63;
+  conf[0].fade.rate            = 40;
+  conf[0].fade.dir             = 1;
+  conf[0].simGrav.rate         = 500;
+  conf[0].simGrav.ledsPerMeter = 60;
+  conf[0].simGrav.gravity      = 1.00;
 
   repeatModeZero(conf);
 
   conf[1].walk.on        = TRUE;
-  conf[1].fade.on        = FALSE;
-  conf[1].walk.dir       = FALSE;
+  conf[1].fade.on        = TRUE;
+  conf[1].walk.dir       = TRUE;
   conf[1].fadeWalk.on    = FALSE;
   conf[1].music.mode1    = FALSE;
   conf[1].music.mode2    = FALSE;
-  conf[1].mirror.mirrors = 3;
+  conf[1].mirror.mirrors = 2;
 
   /* conf[2].walk.on     = FALSE; */
   /* conf[2].fade.on     = TRUE; */
@@ -72,7 +76,8 @@ void app_main(){
 
 
   // TODO add to README // TODO rename and ability to choose specific config
-  initColors(conf, testColors);
+  /* initColors(conf, testColors); */
+  initColors(conf, &no_color);
 
   // TODO add to README, MIGHT BE REDUDANT???
   setSectionColors(conf[0]);

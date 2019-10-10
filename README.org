@@ -132,9 +132,9 @@ There are some variables which need to be set to let the *initRmt()* function kn
 to initialize the library correctly. 
 
 - Set length to number of leds you are gonna use on the led strip.
-- Set /section_length/ to the number of section you are gonna use
+- Set /sectionLength/ to the number of section you are gonna use
 
-/Note/:  Set the the /section_length/ so that /length/ is evenly divisible by /section_length/. 
+/Note/:  Set the the /sectionLength/ so that /length/ is evenly divisible by /sectionLength/. 
 It might cause errors if this is not true. A feature is to be implemented which 
 handles this.
 
@@ -142,8 +142,8 @@ handles this.
 | variable       | type    | is required | function              |
 |----------------+---------+-------------+-----------------------|
 | length         | uint8_t | *yes*         | n of leds             |
-| section_length | uint8_t | *yes*         | n of section          |
-| section_offset | uint8_t | no          | *dont change*           |
+| sectionLength | uint8_t | *yes*         | n of section          |
+| ledOffset | uint8_t | no          | *dont change*           |
 | fadeRate       | uint8_t | no          | rate of function fade |
 | !step          | uint8_t | no          | enable step           |
 | fade           | uint8_t | no          | enable fade           |

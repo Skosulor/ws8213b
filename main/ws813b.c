@@ -49,10 +49,10 @@ void ledEngineTask(void *param){
   mode_config configCopy[conf[0].cycleConfig.nConfigs];
 
   for(i = 0; i < conf[0].cycleConfig.nConfigs; i++){
-    configCopy[i].section_colors = (malloc(conf[0].section_length * sizeof(color_t)));
+    configCopy[i].section_colors = (malloc(conf[0].sectionLength * sizeof(color_t)));
     configCopy[i] = conf[i];
 
-    for(j = 0; j < configCopy[i].section_length; j ++){
+    for(j = 0; j < configCopy[i].sectionLength; j ++){
       configCopy[i].section_colors[j] = conf[i].section_colors[j];
     }
   }
@@ -85,6 +85,7 @@ void ledEngine(mode_config  *mode_conf){
   static TickType_t walkTick;
   static TickType_t debugTick;
   static TickType_t musicTick;
+  static TickType_t gravTick;
 
   static uint16_t   fadeWalk_t = 0;
   static bool       ledsUpdated;
@@ -100,6 +101,7 @@ void ledEngine(mode_config  *mode_conf){
    r.walkRateMs   = 1000;
    r.fadeRateMs   = 1000;
    r.configRateMs = 1000;
+   r.gravRateMs   = 1000;
    r.musicRateMs  = 1;
 
   // Music mode
@@ -211,6 +213,17 @@ void ledEngine(mode_config  *mode_conf){
     }
 
     /* --------- */
+    /* Grav mode */
+    /* ----------*/
+
+    if((LastWakeTime - gravTick) >= r.gravRateMs && mode_conf[cc].simGrav.on){
+      gravTick = LastWakeTime;
+      simulateGravity(mode_conf[cc]);
+      setLeds(mode_conf[cc]);
+      ledsUpdated = TRUE;
+    }
+
+    /* --------- */
     /* fade mode */
     /* ----------*/
 
@@ -267,10 +280,10 @@ void ledEngine(mode_config  *mode_conf){
       scaleAmpRelative(freqAmps, musicAmplitudeColor, musicBrightness, musicRelativeAmp);
 
       if(mode_conf[cc].music.mode1)
-        music_mode1(musicAmplitudeColor, musicBrightness, mode_conf[cc]);
+        musicMode1(musicAmplitudeColor, musicBrightness, mode_conf[cc]);
 
       if(mode_conf[cc].music.mode2)
-        music_mode2(musicRelativeAmp, mode_conf[cc]);
+        musicMode2(musicRelativeAmp, mode_conf[cc]);
 
 
       for(i = 0; i < mode_conf[cc].smooth; i++){
@@ -412,7 +425,7 @@ void scaleAmpRelative(float *power, uint8_t *amplitudeColor, float *color_bright
   }
 }
 
-void music_mode2(float *relativeAmp, mode_config conf){
+void musicMode2(float *relativeAmp, mode_config conf){
 
   float rgbBrightness[RGB];
   uint8_t i, j, r, g ,b;
@@ -460,8 +473,9 @@ void music_mode2(float *relativeAmp, mode_config conf){
   }
 }
 
-void music_mode1(uint8_t *amplitudeColor, float *brightness, mode_config conf){
-  uint16_t i,j;
+
+void musicMode1(uint8_t *amplitudeColor, float *brightness, mode_config conf){
+  uint16_t i,j, pos;
   uint8_t r,g,b;
 
   for(i = 0; i < N_FREQS; i ++){
@@ -470,8 +484,8 @@ void music_mode1(uint8_t *amplitudeColor, float *brightness, mode_config conf){
       r = (int)((float)music_colors[amplitudeColor[i]].red   * brightness[i]);
       g = (int)((float)music_colors[amplitudeColor[i]].green * brightness[i]);
       b = (int)((float)music_colors[amplitudeColor[i]].blue  * brightness[i]);
-
-      variableResistLedChange(r, g, b, j, L_RESISTANCE, H_RESISTANCE);
+      pos = getOffsetPos(conf, j);
+      variableResistLedChange(r, g, b, pos, L_RESISTANCE, H_RESISTANCE);
     }
   }
 }
@@ -514,6 +528,10 @@ void variableResistLedChange(uint8_t r, uint8_t g, uint8_t b, uint16_t led, floa
     leds[led].b = leds[led].b - (leds[led].b - b)/l_resist;
   else
     leds[led].b = leds[led].b - (leds[led].b - b)/h_resist;
+}
+
+uint16_t getOffsetPos(mode_config conf, uint16_t pos){
+  return ((pos + conf.ledOffset) % conf.nLeds);
 }
 
 void fft(float complex x[], float complex y[], int N, int step, int offset){
@@ -595,6 +613,74 @@ void startAdc(float complex *samplesOut, float complex *copy){
   }
 }
 
+void simulateGravity(mode_config conf){
+
+  static int64_t t1, t2   = 0;
+  static int16_t pos      = 0;
+  static int16_t oldPos   = 0;
+  static float   velocity = 0;  // m/s
+  static float   fallDist = 0;
+  float          tDiff;
+
+  //TODO support for multipe drops generated in rt
+  t1 = esp_timer_get_time(); // microseconds
+  tDiff = ((float)t1 - (float)t2) / 1000000;
+  /* tDiff = (t1 - t2); */
+  /* if(tDiff > 1){ */
+    /* tDiff = 0; */
+    /* printf("What what\n"); */
+  /* } */
+
+  // Clear current led based on fallDist
+  leds[pos].r = 0;
+  leds[pos].b = 0;
+  leds[pos].g = 0;
+
+  velocity += conf.simGrav.gravity * tDiff;
+  fallDist += velocity * tDiff;
+
+  /* fallDist = fallDist + velocity * tDiff + 0.5 * conf.simGrav.gravity * pow(tDiff, 2.0); */
+  /* velocity = velocity + tDiff/fallDist; */
+
+  // Calculate current position in cm
+  pos = (uint16_t)(fallDist * 100);
+  printf("Pos: %d\n", pos);
+
+  // Calculate pos in terms of led n
+  pos = ((float)conf.simGrav.ledsPerMeter / 100.0)  * pos;
+
+  /* pos = getOffsetPos(conf, pos); // TODO: func returns uint16_t, need signed value */
+
+  printf("Pos: %d\n", pos);
+
+  if(pos >= conf.nLeds){
+    pos = 0;
+    fallDist = 0;
+    velocity = 0;
+    printf("zero\n");
+  }
+  else if(pos < 0){
+    pos = conf.nLeds - 1;
+    fallDist = 0;
+    velocity = 0;
+    printf("less than zero\n");
+  }
+
+  leds[pos].r = 255;
+  leds[pos].b = 120;
+  leds[pos].g = 0;
+
+  printf("Pos: %d\n", pos);
+  printf("FallDist: %f\n, velocity %f, tdiff %f\n", fallDist, velocity, tDiff);
+
+  if(oldPos == pos)
+    t2 = t1 + tDiff;
+  else
+    t2 = t1;
+  oldPos = pos;
+
+}
+
 void adcErrCtrl(esp_err_t err){
 
   if ( err == ESP_ERR_INVALID_STATE ) {
@@ -613,8 +699,8 @@ void initModeConfigs(mode_config *conf, uint8_t nConfigs, uint16_t nleds, uint8_
   for(i = 0; i < nConfigs; i ++){
 
     conf[i].nLeds                   = nleds;
-    conf[i].section_length          = nSections;
-    conf[i].section_offset          = 0;
+    conf[i].sectionLength           = nSections;
+    conf[i].ledOffset               = 0;
     conf[i].smooth                  = 0;
     // CycleConfig
     conf[i].cycleConfig.nConfigs    = nConfigs;
@@ -637,13 +723,20 @@ void initModeConfigs(mode_config *conf, uint8_t nConfigs, uint16_t nleds, uint8_
     conf[i].mirror.on               = FALSE;
     conf[i].mirror.mirrors          = 1;
     conf[i].mirror.sharedReflection = FALSE;
+    // Grav
+    conf[i].simGrav.on               = FALSE;
+    conf[i].simGrav.gravity          = 9.82;
+    conf[i].simGrav.newDropRate      = 0;
+    conf[i].simGrav.ledsPerMeter     = 60;
+    conf[i].simGrav.t                = 0;
+    conf[i].simGrav.rate             = 0;
     // Music
     conf[i].music.rate              = 0;
     conf[i].music.on                = FALSE;
     conf[i].music.mode1             = FALSE;
     conf[i].music.mode2             = FALSE;
 
-    conf[i].section_colors = (malloc(conf[0].section_length * sizeof(color_t)));
+    conf[i].section_colors = (malloc(conf[0].sectionLength * sizeof(color_t)));
   }
 }
 
@@ -655,7 +748,7 @@ void repeatModeZero(mode_config *conf){
 
 void initColors(mode_config  *mode_conf, const color_t *color){
   int i;
-  for(i = 0; i < mode_conf->section_length; i ++){
+  for(i = 0; i < mode_conf->sectionLength; i ++){
     mode_conf->section_colors[i] = color[i];
   }
 }
@@ -738,8 +831,8 @@ void fadeTo(mode_config *conf){
 
 void setSectionColors(mode_config  conf){
   int i,j;
-  for(i = 0; i < conf.section_length; i ++){
-    for(j = i*(conf.nLeds/conf.section_length); j <  (i+1)*(conf.nLeds/conf.section_length); j ++){
+  for(i = 0; i < conf.sectionLength; i ++){
+    for(j = i*(conf.nLeds/conf.sectionLength); j <  (i+1)*(conf.nLeds/conf.sectionLength); j ++){
       leds[j].r = conf.section_colors[i].red;
       leds[j].g = conf.section_colors[i].green;
       leds[j].b = conf.section_colors[i].blue;
@@ -810,9 +903,9 @@ void stepForward(mode_config  *conf){
     leds[i] = leds[((i-1) % conf->nLeds)];
   }
   leds[0] = temp;
-  conf->section_offset += 1;
-  if(conf->section_offset <= -(int16_t)conf->nLeds)
-    conf->section_offset = 0;
+  conf->ledOffset += 1;
+  if(conf->ledOffset <= -(int16_t)conf->nLeds)
+    conf->ledOffset = 0;
 }
 void stepBackward(mode_config *conf){
   int i;
@@ -822,9 +915,9 @@ void stepBackward(mode_config *conf){
     leds[i] = leds[((i+1) % conf->nLeds)];
   }
   leds[conf->nLeds - 1] = temp;
-  conf->section_offset -= 1;
-  if(conf->section_offset <= -(int16_t)conf->nLeds)
-    conf->section_offset = 0;
+  conf->ledOffset -= 1;
+  if(conf->ledOffset <= -(int16_t)conf->nLeds)
+    conf->ledOffset = 0;
 }
 
 void welcome(){
@@ -896,5 +989,7 @@ void updateRates(rates_struct *r, mode_config mode_conf){
     r->configRateMs = 1000/(((float)(mode_conf.cycleConfig.rate)));
   if(mode_conf.music.on)
     r->musicRateMs = 1000/(((float)(mode_conf.music.rate)));
+  if(mode_conf.simGrav.on)
+    r->gravRateMs = 1000/(((float)(mode_conf.simGrav.rate)));
 }
 

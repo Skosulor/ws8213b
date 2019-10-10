@@ -78,6 +78,7 @@ typedef struct rates_struct{
   uint16_t fadeRateMs;
   uint16_t configRateMs;
   uint16_t musicRateMs;
+  uint16_t gravRateMs;
 } rates_struct;
 
 typedef struct color_t
@@ -119,6 +120,15 @@ typedef struct fadeWalk_t{ // TODO: mode needs an overhaul
   uint8_t  freq;
 } fadeWalk_t;
 
+typedef struct gravity_sim_t{  // TODO: rename struct and corresponding function
+  bool     on;
+  float    gravity;
+  uint8_t  newDropRate;
+  float    ledsPerMeter;
+  uint16_t t;
+  uint16_t rate;
+} gravity_sim_t;
+
 typedef struct mirror_t{
   bool    on;
   uint8_t mirrors;
@@ -128,15 +138,16 @@ typedef struct mirror_t{
 
 typedef struct mode_config
 {
-  walk_t          walk;
-  fade_t          fade;
-  music_t         music;
-  mirror_t        mirror;
-  fadeWalk_t      fadeWalk;
-  cycle_config_t  cycleConfig;
+  walk_t         walk;
+  fade_t         fade;
+  music_t        music;
+  mirror_t       mirror;
+  fadeWalk_t     fadeWalk;
+  cycle_config_t cycleConfig;
+  gravity_sim_t  simGrav;
 
-  int16_t         section_offset;
-  uint8_t         section_length;
+  int16_t         ledOffset;
+  uint8_t         sectionLength;
   uint8_t         smooth;
   uint32_t        nLeds;
   color_t        *section_colors;
@@ -205,8 +216,8 @@ void adcErrCtrl(esp_err_t r);
 void startAdc(float complex *out , float complex *copy);
 void fbinToFreq(float complex *in , float *out);
 void scaleAmpRelative(float *power, uint8_t *amplitudeColor, float *color_brightness, float *relativeAmp);
-void music_mode1(uint8_t *amplitudeColor, float *brightness, mode_config conf);
-void music_mode2(float *relativeAmp, mode_config conf);
+void musicMode1(uint8_t *amplitudeColor, float *brightness, mode_config conf);
+void musicMode2(float *relativeAmp, mode_config conf);
 void resistLedChange(uint8_t r, uint8_t g, uint8_t b, uint16_t led, float resist);
 void resistLowerLedChange(uint8_t r, uint8_t g, uint8_t b, uint16_t led, float resist);
 void variableResistLedChange(uint8_t r, uint8_t g, uint8_t b, uint16_t led, float l_resist, float h_resist);
@@ -217,5 +228,6 @@ void sendAck();
 void updateRates(rates_struct *r, mode_config mode_conf);
 void mirror(mode_config conf);
 void copyRmtItem(uint16_t source, uint16_t target);
-
+uint16_t getOffsetPos(mode_config conf, uint16_t pos);
+void simulateGravity(mode_config conf);
 #endif
