@@ -10,7 +10,6 @@
 #include "colors.h"
 
 void initRmt(mode_config *mode_conf, uint8_t ledPin){
-
   rmt_conf.rmt_mode                       = RMT_MODE_TX;
   rmt_conf.channel                        = RMT_CHANNEL_0;
   rmt_conf.gpio_num                       = ledPin;

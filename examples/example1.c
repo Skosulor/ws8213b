@@ -10,8 +10,6 @@
 #define N_SECTIONS 10
 #define LED_PIN    4
 
-void queueTestTask(void *param);
-
 void app_main(){
 
 
@@ -48,7 +46,7 @@ void app_main(){
   conf[0].simGrav.rate            = 500;
   conf[0].simGrav.ledsPerMeter    = 60;
   conf[0].simGrav.gravity         = 1.00;
-  // smooths the color transition between sections
+  // Other
   conf[0].smooth                  = 50;
 
   // make all configs a copy of conf[0], this is not neccesary but can be handy
@@ -87,21 +85,9 @@ void app_main(){
   portBASE_TYPE x;
 
   x = xTaskCreate(ledEngineTask, "engine", 7000, (void *)conf,  2, xHandle);
-  /* x = xTaskCreate(queueTestTask, "queueTEst", 5000, NULL,  3, xHandle); */
   printf("%d\n", x);
   vTaskDelay(1000);
   vTaskDelete(NULL);
 
 }
 
-void queueTestTask(void *param){
-  mode_config *config;
-    vTaskDelay(10000);
-    config              = requestConfig();
-    config[1].walk.on   = TRUE;
-    config[2].walk.on   = TRUE;
-    config[1].walk.rate = 5;
-    config[2].walk.rate = 10;
-    sendAck();
-    vTaskDelete(NULL);
-}
