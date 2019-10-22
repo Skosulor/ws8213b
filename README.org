@@ -10,7 +10,7 @@ A ws813b led strip library written in C for the microcontroller esp32. This libr
 a complex set of visual effects with minimal effort from the user.
 
 The library have a range of predefined functions which operates/changes the color of the leds
-in different behaviours.  Theese functions belong to different *modes* which are operated by an engine.
+in different behaviours.  Theese functions belong to different *modes* which are operated by an engine/server (freertos task).
 The engine reads a configuration file and cotrols the execution of a *mode*.  Each mode can be enabled
 in combination with one and another for a unique visual effect.
 
