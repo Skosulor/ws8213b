@@ -3,5 +3,5 @@
 # project subdirectory.
 #
 
-PROJECT_NAME := testProgram
+PROJECT_NAME := main
 include $(IDF_PATH)/make/project.mk

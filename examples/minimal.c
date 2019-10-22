@@ -5,9 +5,13 @@
 #include "colors.h"
 #include "freertos/queue.h"
 
+// Number of configs. Not very relevant for this example, refer to example1
 #define N_CONF     1
+// Number of leds to operate on
 #define N_LEDS     60
+// Number of sections that holds a specific color
 #define N_SECTIONS 10
+// The pin which serves as data output to the led strip.
 #define LED_PIN    4
 
 void app_main(){
@@ -24,8 +28,8 @@ void app_main(){
   conf[0].walk.on              = TRUE;
   conf[0].walk.rate            = 50;
 
-  // init the sections to colors
-  // and set each led according to their section color
+  // init the sections to "testColors" (defined in colors.h)
+  // and set each led according to their section color.
   initColors(conf, &testColors);
   setSectionColors(conf[0]);
 
@@ -33,7 +37,6 @@ void app_main(){
   TaskHandle_t xHandle = NULL;
   portBASE_TYPE x;
   x = xTaskCreate(ledEngineTask, "engine", 7000, (void *)conf,  2, xHandle);
-  printf("%d\n", x);
   vTaskDelay(1000);
   vTaskDelete(NULL);
 }

@@ -590,7 +590,6 @@ void startAdc(float complex *samplesOut, float complex *copy){
   int i;
   int amplitude;
   float voltage;
-  esp_err_t err;
   int64_t currTime;
   int64_t lastTime;
 

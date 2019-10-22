@@ -46,7 +46,7 @@ void app_main(){
   conf[0].simGrav.rate            = 500;
   conf[0].simGrav.ledsPerMeter    = 60;
   conf[0].simGrav.gravity         = 1.00;
-  // Other
+  // smooths the color transition between sections
   conf[0].smooth                  = 50;
 
   // make all configs a copy of conf[0], this is not neccesary but can be handy

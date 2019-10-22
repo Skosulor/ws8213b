@@ -5,7 +5,7 @@
 #include "colors.h"
 #include "freertos/queue.h"
 
-#define N_CONF     4
+#define N_CONF     5
 #define N_LEDS     120
 #define N_SECTIONS 10
 #define LED_PIN    4

@@ -14,14 +14,26 @@ in different behaviours.  Theese functions belong to different *modes* which are
 The engine reads a configuration file and cotrols the execution of a *mode*.  Each mode can be enabled
 in combination with one and another for a unique visual effect.
 
-What to expect of this library:
-- Ease to set the colors of any number of leds 
-- Ease to divide the led strip into multiple sections of colors
-- Complex visual effects by simply enabling modes in a configuration file
-- Multiple configurations 
-- TODO Modes which operates on desired sections
+This readme is a bit outdated so please refer to the examples in the /examples/
+directory. A short description for each example is available here.
 
-* Usage
+To compile one of the examples copy it to the main folder and rename it to main.c
+
+** minimal.c
+A minimal example of what is required to use the library.
+** example1.c
+Example showcasing all the modes and their respective settings. However not all
+modes are activated.
+** example2.c
+Example showcasing how the configuration can be accessed and altered during
+execution from another task/process.
+** fftExample.c
+showcases the music mode. This requires a mic input on GPIO34. Its specifically
+tuned for a electret microphone - Amplifier - MAX4466.
+
+
+
+* Usage  *OUT OF DATE*
 ** Short manual
 
 For a super quick introduction see[[*Minimal Example][ Minimal Example]].
@@ -111,7 +123,7 @@ void app_main(){
 }
 #+end_src
 
-* Config structures
+* Config structures *OUT OF DATE*
 
 This section describes all the structures in the library. Under manually configured
 you'll find the structures you need to configure, under automatically configured
@@ -227,7 +239,7 @@ Configuration file for the remote control driver library.
 | carrier_level        |             1 |
 |----------------------+---------------|
 
-* Led Modes
+* Led Modes *OUT OF DATE*
 
 *** walk
 
