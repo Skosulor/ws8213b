@@ -190,7 +190,7 @@ QueueHandle_t modeConfigQueue;
 QueueHandle_t modeConfigQueueAck;
 
 void initRmt(mode_config *mode_conf, uint8_t ledPin);
-void initColors(mode_config *mode_conf, const color_t* color);
+void initColors(mode_config *mode_conf, const color_t color[]);
 void ledEngine(mode_config  *mode_conf);
 void outputLeds(mode_config  mode_conf);
 void setLed(rmt_item32_t *item, uint8_t red, uint8_t blue, uint8_t green);

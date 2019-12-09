@@ -14,8 +14,8 @@ static const color_t no_color = {
 };
 
 static const color_t color_red = {
-  .red = 0,
-  .blue = 255,
+  .red = 255,
+  .blue = 0,
   .green = 0,
 };
 static const color_t color_blue = {
@@ -115,6 +115,18 @@ static const color_t music_colors[N_FFT_COLORS] = {
     .blue = 30,
   }};
 
+static const color_t xmasColors[10] = {
+color_red,
+color_green,
+color_red,
+color_green,
+color_red,
+color_green,
+color_red,
+color_green,
+color_red,
+color_green
+};
 
 static const color_t testColors[10] = {
 

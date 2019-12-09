@@ -744,7 +744,7 @@ void repeatModeZero(mode_config *conf){
     conf[i] = conf[0];
 }
 
-void initColors(mode_config  *mode_conf, const color_t *color){
+void initColors(mode_config  *mode_conf, const color_t color[]){
   int i;
   for(i = 0; i < mode_conf->sectionLength; i ++){
     mode_conf->section_colors[i] = color[i];

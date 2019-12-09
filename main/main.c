@@ -4,6 +4,7 @@
 #include "ws813b.h"
 #include "colors.h"
 #include "freertos/queue.h"
+#include "btrec.c"
 
 #define N_CONF     5
 #define N_LEDS     120
@@ -11,6 +12,7 @@
 #define LED_PIN    4
 
 void queueTestTask(void *param);
+void testTask(void *param);
 
 void app_main(){
 
@@ -57,7 +59,7 @@ void app_main(){
 
   // Settings for conf[1]
   conf[1].walk.on          = TRUE;
-  conf[1].fade.on          = TRUE;
+  conf[1].fade.on          = FALSE;
   conf[1].walk.dir         = TRUE;
   conf[1].mirror.on        = TRUE;
   conf[1].mirror.mirrors   = 4;
@@ -76,32 +78,60 @@ void app_main(){
 
   // Settings for conf[4]
   conf[4].fade.rate = 100;
-  conf[4].walk.on   = FALSE;
+  /* conf[4].walk.on   = FALSE; */
 
 
 
-  initColors(conf, &testColors);
+  initColors(conf, xmasColors);
   setSectionColors(conf[0]);
 
   TaskHandle_t xHandle = NULL;
   portBASE_TYPE x;
 
+  start_bt();
   x = xTaskCreate(ledEngineTask, "engine", 7000, (void *)conf,  2, xHandle);
   /* x = xTaskCreate(queueTestTask, "queueTEst", 5000, NULL,  3, xHandle); */
+  /* x = xTaskCreate(testTask, "engine", 7000, (void *)conf,  2, xHandle); */
   printf("%d\n", x);
   vTaskDelay(1000);
   vTaskDelete(NULL);
-
 }
+
+
 
 void queueTestTask(void *param){
   mode_config *config;
-    vTaskDelay(10000);
-    config              = requestConfig();
-    config[1].walk.on   = TRUE;
-    config[2].walk.on   = TRUE;
-    config[1].walk.rate = 5;
-    config[2].walk.rate = 10;
-    sendAck();
-    vTaskDelete(NULL);
+  vTaskDelay(10000);
+  config              = requestConfig();
+  config[1].walk.on   = TRUE;
+  config[2].walk.on   = TRUE;
+  config[1].walk.rate = 5;
+  config[2].walk.rate = 10;
+  sendAck();
+  vTaskDelete(NULL);
+}
+
+void on_bt_recv(uint8_t *data, uint16_t len){
+  mode_config *config;
+  config              = requestConfig();
+  /* print_data(data, len); */
+  /* printf("%d\n", arduino_remote_to_int(data, len-1)); */
+  uint32_t dataDecoded[len];
+  arduino_remote_decode(data,dataDecoded,len);
+
+  if(data[0] == 1){
+    config[0].walk.on = FALSE;
+    config[1].walk.on = FALSE;
+    config[2].walk.on = FALSE;
+    config[3].walk.on = FALSE;
+    config[4].walk.on = FALSE;
+  }
+  else if(data[0] == 5){
+    config[0].walk.on = TRUE;
+    config[1].walk.on = TRUE;
+    config[2].walk.on = TRUE;
+    config[3].walk.on = TRUE;
+    config[4].walk.on = TRUE;
+  }
+  sendAck();
 }
